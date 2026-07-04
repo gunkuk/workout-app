@@ -1,4 +1,6 @@
-# 운동 추적 PWA — 설계 스펙 (v4.1)
+# 운동 추적 PWA — 설계 스펙 (v4.2)
+
+> v4.2 (2026-07-05): 사용자 핵심 요구 3건 반영 — ①프로그램 라이브러리·전환을 명시 기능으로 승격 ②배포 채널(GitHub 라이브러리 + 파일 가져오기, Drive CORS 제약 명시) ③표준 양식(JSON Schema)+검증기/렌더러+자연어 변환 규약 신설(§3.7, Stage 1 첫 태스크).
 
 > v4 (2026-07-05): 3라운드 집중 검토 21건(fold 모델 12·도메인 9) 반영. **방침 = 패치가 아니라 단순화**: SessionCompleted 이벤트 승격, 증량 지연 발효 제거, lookahead 제거, "TM당 증량 규칙 사이클-주 1개" 불변식 신설, OHP T2 이중 증량 차단, 워밍업 상대 %화, 롤백 데드존 제거, 스모 프리셋 강등.
 > v3: 2R 33건 반영 (파생 fold·T2·커서). v2: 1R 35건 반영.
@@ -70,7 +72,10 @@
    - 운동 스킵/대체 + **데드 안전 대체 = RDL 경량(데드 TM 50~60% × 3×6~10)** — 볼트 수칙("즉시 RDL·경량화") 그대로. **스모는 일반 대체로 강등**(동일 TM 금지 — 강도 캡 ≤85%·AMRAP 제거 부착): 통증 신호 날 95% AMRAP을 당기게 하지 않음. 대체 세트는 이력·e1RM에서 분리 표시(§2-6).
    - 진행 중 세션 복원(즉시 커밋).
 6. **히스토리·통계** — 캘린더, 운동별 이력(**대체 세트 분리 표시** — 스모 T2와 데드→스모 대체가 섞이지 않게), TM 이력, e1RM(topSet만, reps>10 제외).
-7. **프로그램 편집** — TM 수동(=DecisionEvent), 악세사리 교체(=새 slotId), rep 조정. **모든 편집 = 새 version(in-place 변경 금지), 참조된 전 버전 immutable 보존**(과거 세션 재fold 정합). 로컬 편집 = 로컬 fork 버전 — S2 pull 충돌 안내(§4). 빌더 UI는 S3.
+7. **프로그램 편집·라이브러리·전환** —
+   - 편집: TM 수동(=DecisionEvent), 악세사리 교체(=새 slotId), rep 조정. **모든 편집 = 새 version(in-place 금지), 전 버전 immutable 보존.** 로컬 편집 = fork 버전 — S2 pull 충돌 안내(§4). 빌더 UI는 S3.
+   - **라이브러리**: 여러 ProgramDefinition 보관. **활성 전환 = 새 ProgramInstanceState 생성** — 과거 이력은 당시 programVersion 스냅샷으로 불변, 통계는 프로그램 경계를 넘어 연속.
+   - **가져오기 경로 2종**: ① JSON 파일(§2-8 가져오기와 동일 — Drive/카톡 등 아무 채널로 전달받아 주입) ② **URL에서 가져오기**(CORS 허용 origin — GitHub raw 등). 가져온 프로그램은 validate(§3.7) 통과해야 라이브러리 등록.
 8. **온보딩·데이터 안전** — TM 시드(벤치105/OHP67.5/스쿼트85, 데드 보수 초기화, T2 4종 초기화). 설치 유도(standalone 미감지 오버레이 + iOS 수동 안내 + 상시 배너), persist() 시도(보장 아님). **JSON 내보내기/가져오기**: iOS = Web Share files(제스처 필수) → 클립보드 fallback / Android·데스크톱 = a[download]. **범위: 이벤트 로그 전체 + 프로그램 정의 전 버전(fork 포함) + ProgramInstanceState + 설정 + 라이브러리 커스텀.**
 
 **비목표**: 계정/서버, 소셜, 폼 분석, 유산소, 식단.
@@ -154,6 +159,30 @@ Vite+React+TS / Dexie / Zustand / vite-plugin-pwa (autoUpdate+토스트, `base`=
 ### 3.6 테스트 (정답 = 공식 시트 확정 %테이블)
 진리표 전 구간(데드 보수 각주) · volume day 무판정 · **사이클-주 1회 상한(cycleIndex 구분 포함)** · **화 OHP T2 + 목 topSet → OHP 주 +2.5 정확히 1회** · T2 리프트별 증량폭·실패 경로 · 더블 프로그레션(증량→리셋→유예→2연속 미달 롤백, 데드존 없음 확인) · 정정 재fold(자동 증량 교정+플래그) · (at,id) 결정성 · anchor 변경 후 과거 cyclePos 불변 · 워밍업 불변식(역전 없음·힌지 하한) · 내보내기 왕복(전 버전 포함).
 
+### 3.7 프로그램 표준 양식 & 자연어 변환 파이프라인 (Stage 1 **첫 태스크** — 스키마 우선 개발)
+
+**분업 원칙**: 자연어 해석 = Claude(LLM 일, 코드로 못 짬) / **미리 짜두는 코드 = 결정론적 검증기·렌더러**. 변환의 정답성은 이 도구들이 닫는다.
+
+| 산출물 | 내용 |
+|---|---|
+| `schema/program.schema.json` | **표준 양식의 기계 정본** (JSON Schema) — §3.3 ProgramDefinition을 스키마화. 앱·검증기·Claude 변환이 전부 이것 하나를 참조 |
+| `schema/rules-catalog.md` | **내장 증량 규칙 카탈로그** — `nsunsTopSet` / `t2LastSet` / `doubleProgression` / `linear`(고정 주기 증량) 각각의 params 명세. 프로그램 JSON은 이 카탈로그의 ruleId만 참조 가능(새 규칙 = 코드 파일 1개 추가, §5 앵커) |
+| `tools/validate.mjs` | 스키마 검사 + 의미 규칙(§3.3 검증 규칙: 사이클-주당 TM 규칙 ≤1, slotId 유일성, ruleId 존재, amrapRole 정합) — node CLI, 앱 가져오기 경로도 동일 로직 사용 |
+| `tools/render.mjs` | 프로그램 JSON + 샘플 TM → **주차별 세트표(무게 계산 포함) 마크다운 출력** — 변환 결과를 사람이 원문과 대조하는 눈검수용 |
+
+**자연어 → 표준 양식 변환 규약** (볼트 Claude Code 세션에서 수행):
+1. 사용자가 볼트에 자연어로 루틴 작성 (예: `4. KK/Weight Lifting/routines/내루틴.md`)
+2. Claude가 `program.schema.json`+카탈로그를 참조해 JSON 변환
+3. `validate` 통과 → `render` 표를 원문과 대조(불일치 시 재변환) → 사용자 확인
+4. 확정본을 프로그램 라이브러리(GitHub `programs/`)에 push — 앱·친구가 URL로 가져옴
+
+**배포 채널**:
+| 채널 | 용도 | 제약 |
+|---|---|---|
+| **GitHub repo `programs/`** (기본) | 프로그램 라이브러리 정본 — raw URL이 CORS 허용이라 앱이 직접 fetch 가능, 버전 관리, Claude Code가 직접 push | 공개 저장소(개인 데이터 아님 — 프로그램 정의만) |
+| 파일 전달 (Drive 공유·카톡 등) | 친구에게 1회성 전달 → 앱 가져오기 | 수동 |
+| Google Drive 직접 fetch | ❌ 브라우저 CORS 차단(Drive는 CORS 헤더 미제공). 필요 시 Drive API v3+키로 우회 가능 — ConfigSource 포트 뒤 어댑터로 추가(앵커됨, 기본 채택 안 함) | API 키 관리 |
+
 ## 4. LLM-wiki 연동 (Stage 2)
 
 | 방향 | 내용 | 규칙 |
@@ -172,7 +201,8 @@ Vite+React+TS / Dexie / Zustand / vite-plugin-pwa (autoUpdate+토스트, `base`=
 | OneDrive (S2) | (at,id) 전순서·id 합집합·tombstone + LogSink/ConfigSource | Graph 어댑터+스파이크 |
 | Claude Q&A (S3) | AskService 포트 | API 어댑터 |
 | 새 통계 | 이벤트 위 순수 함수 (rir·setType 확보) | 함수 |
-| 친구용 프로그램 | 가져오기 = 주입 경로(§2-8) | JSON |
+| 친구용/신규 프로그램 | 표준 양식 스키마 + validate/render 도구 + GitHub 라이브러리 + URL 가져오기(§3.7) | 자연어 스펙 → Claude 변환 → push (앱 코드 변경 0) |
+| Google Drive 연동(선택) | ConfigSource 포트 | Drive API 어댑터 + 키 |
 | 크로스핏 정식 추적 | slotId optional + externalTags | 입력 UI |
 | 스키마 진화 | 전 엔티티 schemaVersion + lazy migration | 마이그레이션 함수 |
 
