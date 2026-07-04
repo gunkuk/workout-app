@@ -1,4 +1,4 @@
-# 운동 추적 PWA — 설계 스펙 (v4)
+# 운동 추적 PWA — 설계 스펙 (v4.1)
 
 > v4 (2026-07-05): 3라운드 집중 검토 21건(fold 모델 12·도메인 9) 반영. **방침 = 패치가 아니라 단순화**: SessionCompleted 이벤트 승격, 증량 지연 발효 제거, lookahead 제거, "TM당 증량 규칙 사이클-주 1개" 불변식 신설, OHP T2 이중 증량 차단, 워밍업 상대 %화, 롤백 데드존 제거, 스모 프리셋 강등.
 > v3: 2R 33건 반영 (파생 fold·T2·커서). v2: 1R 35건 반영.
@@ -40,7 +40,8 @@
    - 시드 파라미터 확정 [§8-1].
 3. **TM 자동 증량** —
    - **불변식: 하나의 TM에 증량을 쓸 수 있는 규칙은 사이클-주당 정확히 1개.** (벤치 주2회·화요일 OHP T2 같은 재등장 슬롯의 이중 증량을 구조적으로 차단.)
-   - **(a) T1 판정**: `topSet` 세트를 포함한 세션의 `SessionCompleted` 시점에 판정·즉시 발효. **같은 사이클-주의 후속 topSet 판정은 no-op**(첫 판정만 유효 — lookahead 없는 단순 left-fold). topSet 세션 스킵 주 = 동결.
+   - **(a) T1 판정**: **`nsunsTopSet` 규칙 보유 슬롯**의 topSet 세트를 포함한 세션의 `SessionCompleted`(status "completed"만 — skipped는 발효 없음) 시점에 판정·즉시 발효. rule 없는 슬롯의 topSet은 판정을 낳지 않음. topSet 세션 스킵 주 = 동결.
+   - **발효 상한(모든 progressionRule 공통)**: **TM당 사이클-주 발효 ≤1** — 같은 사이클-주의 후속 발효는 no-op(첫 것만 유효, lookahead 없는 left-fold). T1·T2·머지로 생긴 중복 세션 전부에 적용.
    - T1 진리표(`progressionParams`):
      | 탑세트 reps | 동작 |
      |---|---|
@@ -53,13 +54,14 @@
    - **자동 증량은 이벤트로 기록하지 않음** — fold가 도출(§3.3). 사용자 결정만 `DecisionEvent`.
    - **대체 세트(`substitutedFrom`)는 모든 TM 판정에서 제외.**
 4. **주간 부위별 분석** (사이클-주 버킷): 부위별 ① 유효 세트 ② 톤수(전 세트) ③ 빈도. 유효 세트 = 역할 기반:
-   - T1: AMRAP 2세트 + **≥90%TM** 세트(탑세트 인접 — 85%는 RIR 5~7의 쉬운 세트라 제외)
+   - T1: **amrapRole 부여 세트 전부** + **≥90%TM** 세트(탑세트 인접 — 85%는 RIR 5~7의 쉬운 세트라 제외)
    - T2: **후반 4세트**(피로 누적 하 실질 고노력 — "마지막 1세트만"은 하체가 만성 볼륨부족 오신호)
    - 악세사리: 전 세트(RIR 2~3 처방 전제) / `rir≤4` 입력 세트는 티어 무관 유효
    - ⚠️ 이 기본값에서도 nSuns 구조상 하체 유효세트는 상체보다 낮게 표시됨(프로그램의 문서화된 특성) — 대시보드에 각주 표기 [§8-2].
    - 크로스핏(일) = 외부 세션: 빈도만.
+   - **버킷팅 규칙**: 세트→사이클-주 매핑은 SessionCompleted.cyclePos 조인. **SessionCompleted가 없는 고아 세션의 세트는 통계 제외**(복원 UI가 완료/스킵 확정을 강제하므로 일시 상태). skipped 세션의 수행된 세트는 통계 **포함**(사실), 규칙 발효만 completed 한정.
 5. **세션 UX** —
-   - **워밍업 자동 생성(상대 %)**: 기준 = **그날 첫 작업세트 무게**. 램프 예: 빈바 → 50% → 70% → 88%×1. **불변식: 워밍업 ≤ 첫 작업세트 − 1스텝** (T2 50%TM 같은 가벼운 시작에서 역전 방지 — 갭이 작으면 램프 자동 축소). **힌지 계열(데드·스모·RDL)은 빈바 스텝 제외, 하한 = 바닥 높이 원판 구성 최소 하중**(플레이트 설정에서 파생). `setType:"warmup"` — 통계·판정 전부 제외.
+   - **워밍업 자동 생성(상대 %)**: 기준 = **그날 첫 작업세트 무게**. 램프 예: 빈바 → 50% → 70% → 88%×1. **불변식: 워밍업 ≤ 첫 작업세트 − 1스텝** (T2 50%TM 같은 가벼운 시작에서 역전 방지 — 갭이 작으면 램프 자동 축소). **힌지 계열(데드·스모·RDL)은 빈바 스텝 제외, 하한 = 바닥 높이 원판 구성 최소 하중** — 플레이트 설정에 **`fullDiameter` 플래그**를 두어 파생. **하한 > (첫 작업세트 −1스텝)이면 램프 생략.** `setType:"warmup"` — 통계·판정 전부 제외.
    - 세트 체크오프: 행 전체 탭(≥48px), ± 스테퍼. 직전 세션 동일 슬롯 실적 인라인.
    - 세트 정정: 탭 → 수정(원본 불변, CorrectionRecord).
    - 휴식 타이머: timestamp + visibilitychange 재계산. 잠금 중 알림 불가(§7).
@@ -105,7 +107,8 @@ ProgramDefinition {
       sets: [{ load: {kind:"pctOfTM", ref?, pct} | {kind:"tracked"},  // 개방 union
                reps, amrapRole?: "topSet"|"backoff" }],
       warmupRuleId?, progressionRuleId?, progressionParams }] }] }]
-  // 검증 규칙(로드 시): exerciseId당 progressionRule 보유 슬롯 ≤ 1 (사이클-주 기준) — §2-3 불변식
+  // 검증 규칙(로드 시): 각 사이클-주 내에서 exerciseId당 progressionRule 보유 슬롯 ≤ 1
+  //   (다주차 프로그램에서 주가 다르면 별개 슬롯 적법. rule 0개 = 수동 관리 리프트, 적법) — §2-3 불변식
 }
 ProgramInstanceState {
   programId, programVersion, mode: "calendar"|"rolling", schemaVersion,
@@ -134,7 +137,8 @@ SessionCompleted { id, sessionId, at, cyclePos: {cycleIndex, week, dayOrdinal}, 
 // 입력: 위 4종 이벤트 + 참조된 ProgramDefinition 버전들
 // 전순서: (at, id). 파생 증량의 위치 = 그것을 유발한 SessionCompleted의 (at, id) 직후.
 // DecisionEvent는 재검토 플래그와 무관하게 항상 절대값 적용(결정성 우선) — 시정은 새 DecisionEvent로만.
-// 재검토 플래그(UI 전용) 트리거: sourceSetRecord의 판정 입력 필드(actualReps·revoked) 변경 시.
+// 재검토 플래그(UI 전용) 트리거: ① sourceSetRecord의 판정 입력 필드(actualReps·revoked) 변경
+//   ② SessionCompleted.cyclePos 정정 → 해당 사이클-주의 판정에 근거한 결정 전부 플래그.
 // 규칙 파라미터는 각 SessionCompleted.programVersion 시점 값 사용.
 // 머지: id 합집합 (정정·tombstone도 이벤트 → 삭제 부활 없음).
 ```
