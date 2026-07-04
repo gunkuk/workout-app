@@ -2,6 +2,14 @@ import { describe, it, expect } from "vitest";
 import { validateSemantics, validateProgram } from "../lib/validation.mjs";
 import { minimalProgram } from "./fixtures.mjs";
 
+function ruledSlot(ruleId, params, sets) {
+  const p = minimalProgram();
+  p.weeks[0].days[0].slots[0].progressionRuleId = ruleId;
+  p.weeks[0].days[0].slots[0].progressionParams = params;
+  if (sets) p.weeks[0].days[0].slots[0].sets = sets;
+  return p;
+}
+
 function twoSlotProgram() {
   const p = minimalProgram();
   p.weeks[0].days[0].slots.push({
@@ -38,5 +46,38 @@ describe("시맨틱 검증", () => {
     const errors = validateProgram(p);
     expect(errors.length).toBeGreaterThan(0);
     expect(errors.every((e) => e.startsWith("[스키마]"))).toBe(true);
+  });
+});
+
+describe("증량 규칙 카탈로그", () => {
+  it("알 수 없는 ruleId를 잡는다", () => {
+    const errors = validateSemantics(ruledSlot("magicRule", {}));
+    expect(errors.join("\n")).toContain("알 수 없는 규칙");
+  });
+
+  it("nsunsTopSet: topSet 세트 없으면 에러", () => {
+    const errors = validateSemantics(ruledSlot("nsunsTopSet", { increment: 2.5 }));
+    expect(errors.join("\n")).toContain("topSet 세트 없음");
+  });
+
+  it("nsunsTopSet: topSet 있고 increment 유효하면 통과", () => {
+    const errors = validateSemantics(
+      ruledSlot("nsunsTopSet", { increment: 2.5 }, [
+        { load: { kind: "pctOfTM", pct: 0.95 }, reps: 1, amrapRole: "topSet" },
+      ]),
+    );
+    expect(errors).toEqual([]);
+  });
+
+  it("doubleProgression: repMin>=repMax를 잡는다", () => {
+    const errors = validateSemantics(
+      ruledSlot("doubleProgression", { repMin: 12, repMax: 8, weightStep: 5 }),
+    );
+    expect(errors.join("\n")).toContain("repMin<repMax");
+  });
+
+  it("t2LastSet: increment 누락을 잡는다", () => {
+    const errors = validateSemantics(ruledSlot("t2LastSet", {}));
+    expect(errors.join("\n")).toContain("increment");
   });
 });
