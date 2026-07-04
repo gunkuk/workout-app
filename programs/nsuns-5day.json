@@ -1,0 +1,201 @@
+{
+  "id": "nsuns-5day",
+  "name": "nSuns 5/3/1 5-day (화~토)",
+  "description": "T1 9세트 + T2 8세트 + 악세사리 1개/일. 사용자 확정 2026-07-05: 데드 +5, RIR 게이트 없음.",
+  "version": 1,
+  "schemaVersion": 1,
+  "weeks": [
+    {
+      "days": [
+        {
+          "ordinal": 1, "weekdayHint": "화", "name": "벤치 volume + OHP",
+          "slots": [
+            { "id": "w1d1-bench-t1", "exerciseId": "bench", "label": "T1",
+              "sets": [
+                { "load": { "kind": "pctOfTM", "pct": 0.65 }, "reps": 8 },
+                { "load": { "kind": "pctOfTM", "pct": 0.75 }, "reps": 6 },
+                { "load": { "kind": "pctOfTM", "pct": 0.85 }, "reps": 4 },
+                { "load": { "kind": "pctOfTM", "pct": 0.85 }, "reps": 4 },
+                { "load": { "kind": "pctOfTM", "pct": 0.85 }, "reps": 4 },
+                { "load": { "kind": "pctOfTM", "pct": 0.80 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.75 }, "reps": 6 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 7 },
+                { "load": { "kind": "pctOfTM", "pct": 0.65 }, "reps": 8, "amrapRole": "backoff" }
+              ] },
+            { "id": "w1d1-ohp-t2", "exerciseId": "ohp", "label": "T2",
+              "sets": [
+                { "load": { "kind": "pctOfTM", "pct": 0.50 }, "reps": 6 },
+                { "load": { "kind": "pctOfTM", "pct": 0.60 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 7 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 4 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 6 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 8 }
+              ] },
+            { "id": "w1d1-latpull-acc", "exerciseId": "latPulldown", "label": "accessory",
+              "progressionRuleId": "doubleProgression",
+              "progressionParams": { "repMin": 8, "repMax": 12, "weightStep": 5, "sets": 3 },
+              "sets": [
+                { "load": { "kind": "tracked" }, "reps": 8 },
+                { "load": { "kind": "tracked" }, "reps": 8 },
+                { "load": { "kind": "tracked" }, "reps": 8 }
+              ] }
+          ]
+        },
+        {
+          "ordinal": 2, "weekdayHint": "수", "name": "스쿼트 + 스모데드",
+          "slots": [
+            { "id": "w1d2-squat-t1", "exerciseId": "squat", "label": "T1",
+              "progressionRuleId": "nsunsTopSet", "progressionParams": { "increment": 5 },
+              "sets": [
+                { "load": { "kind": "pctOfTM", "pct": 0.75 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.85 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.95 }, "reps": 1, "amrapRole": "topSet" },
+                { "load": { "kind": "pctOfTM", "pct": 0.90 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.85 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.80 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.75 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.65 }, "reps": 5, "amrapRole": "backoff" }
+              ] },
+            { "id": "w1d2-sumo-t2", "exerciseId": "sumoDeadlift", "label": "T2",
+              "progressionRuleId": "t2LastSet", "progressionParams": { "increment": 2.5 },
+              "sets": [
+                { "load": { "kind": "pctOfTM", "pct": 0.50 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.60 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 7 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 4 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 6 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 8 }
+              ] },
+            { "id": "w1d2-calf-acc", "exerciseId": "calfRaise", "label": "accessory",
+              "progressionRuleId": "doubleProgression",
+              "progressionParams": { "repMin": 12, "repMax": 20, "weightStep": 5, "sets": 3 },
+              "sets": [
+                { "load": { "kind": "tracked" }, "reps": 12 },
+                { "load": { "kind": "tracked" }, "reps": 12 },
+                { "load": { "kind": "tracked" }, "reps": 12 }
+              ] }
+          ]
+        },
+        {
+          "ordinal": 3, "weekdayHint": "목", "name": "OHP + 인클라인",
+          "slots": [
+            { "id": "w1d3-ohp-t1", "exerciseId": "ohp", "label": "T1",
+              "progressionRuleId": "nsunsTopSet", "progressionParams": { "increment": 2.5 },
+              "sets": [
+                { "load": { "kind": "pctOfTM", "pct": 0.75 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.85 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.95 }, "reps": 1, "amrapRole": "topSet" },
+                { "load": { "kind": "pctOfTM", "pct": 0.90 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.85 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.80 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.75 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.65 }, "reps": 5, "amrapRole": "backoff" }
+              ] },
+            { "id": "w1d3-incline-t2", "exerciseId": "inclineBench", "label": "T2",
+              "progressionRuleId": "t2LastSet", "progressionParams": { "increment": 2.5 },
+              "sets": [
+                { "load": { "kind": "pctOfTM", "pct": 0.40 }, "reps": 6 },
+                { "load": { "kind": "pctOfTM", "pct": 0.50 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.60 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.60 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.60 }, "reps": 7 },
+                { "load": { "kind": "pctOfTM", "pct": 0.60 }, "reps": 4 },
+                { "load": { "kind": "pctOfTM", "pct": 0.60 }, "reps": 6 },
+                { "load": { "kind": "pctOfTM", "pct": 0.60 }, "reps": 8 }
+              ] },
+            { "id": "w1d3-reardelt-acc", "exerciseId": "rearDeltFly", "label": "accessory",
+              "progressionRuleId": "doubleProgression",
+              "progressionParams": { "repMin": 12, "repMax": 20, "weightStep": 5, "sets": 3 },
+              "sets": [
+                { "load": { "kind": "tracked" }, "reps": 12 },
+                { "load": { "kind": "tracked" }, "reps": 12 },
+                { "load": { "kind": "tracked" }, "reps": 12 }
+              ] }
+          ]
+        },
+        {
+          "ordinal": 4, "weekdayHint": "금", "name": "데드리프트 + 프론트스쿼트",
+          "slots": [
+            { "id": "w1d4-dead-t1", "exerciseId": "deadlift", "label": "T1",
+              "progressionRuleId": "nsunsTopSet", "progressionParams": { "increment": 5 },
+              "sets": [
+                { "load": { "kind": "pctOfTM", "pct": 0.75 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.85 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.95 }, "reps": 1, "amrapRole": "topSet" },
+                { "load": { "kind": "pctOfTM", "pct": 0.90 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.85 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.80 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.75 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.65 }, "reps": 3, "amrapRole": "backoff" }
+              ] },
+            { "id": "w1d4-front-t2", "exerciseId": "frontSquat", "label": "T2",
+              "progressionRuleId": "t2LastSet", "progressionParams": { "increment": 5 },
+              "sets": [
+                { "load": { "kind": "pctOfTM", "pct": 0.35 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.45 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.55 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.55 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.55 }, "reps": 7 },
+                { "load": { "kind": "pctOfTM", "pct": 0.55 }, "reps": 4 },
+                { "load": { "kind": "pctOfTM", "pct": 0.55 }, "reps": 6 },
+                { "load": { "kind": "pctOfTM", "pct": 0.55 }, "reps": 8 }
+              ] },
+            { "id": "w1d4-curl-acc", "exerciseId": "machineCurl", "label": "accessory",
+              "progressionRuleId": "doubleProgression",
+              "progressionParams": { "repMin": 8, "repMax": 12, "weightStep": 5, "sets": 3 },
+              "sets": [
+                { "load": { "kind": "tracked" }, "reps": 8 },
+                { "load": { "kind": "tracked" }, "reps": 8 },
+                { "load": { "kind": "tracked" }, "reps": 8 }
+              ] }
+          ]
+        },
+        {
+          "ordinal": 5, "weekdayHint": "토", "name": "벤치 heavy + CGBP",
+          "slots": [
+            { "id": "w1d5-bench-t1", "exerciseId": "bench", "label": "T1",
+              "progressionRuleId": "nsunsTopSet", "progressionParams": { "increment": 2.5 },
+              "sets": [
+                { "load": { "kind": "pctOfTM", "pct": 0.75 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.85 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.95 }, "reps": 1, "amrapRole": "topSet" },
+                { "load": { "kind": "pctOfTM", "pct": 0.90 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.85 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.80 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.75 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.70 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.65 }, "reps": 5, "amrapRole": "backoff" }
+              ] },
+            { "id": "w1d5-cgbp-t2", "exerciseId": "cgbp", "label": "T2",
+              "progressionRuleId": "t2LastSet", "progressionParams": { "increment": 2.5 },
+              "sets": [
+                { "load": { "kind": "pctOfTM", "pct": 0.40 }, "reps": 6 },
+                { "load": { "kind": "pctOfTM", "pct": 0.50 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.60 }, "reps": 3 },
+                { "load": { "kind": "pctOfTM", "pct": 0.60 }, "reps": 5 },
+                { "load": { "kind": "pctOfTM", "pct": 0.60 }, "reps": 7 },
+                { "load": { "kind": "pctOfTM", "pct": 0.60 }, "reps": 4 },
+                { "load": { "kind": "pctOfTM", "pct": 0.60 }, "reps": 6 },
+                { "load": { "kind": "pctOfTM", "pct": 0.60 }, "reps": 8 }
+              ] },
+            { "id": "w1d5-csr-acc", "exerciseId": "chestSupportedRow", "label": "accessory",
+              "progressionRuleId": "doubleProgression",
+              "progressionParams": { "repMin": 8, "repMax": 12, "weightStep": 5, "sets": 3 },
+              "sets": [
+                { "load": { "kind": "tracked" }, "reps": 8 },
+                { "load": { "kind": "tracked" }, "reps": 8 },
+                { "load": { "kind": "tracked" }, "reps": 8 }
+              ] }
+          ]
+        }
+      ]
+    }
+  ]
+}
