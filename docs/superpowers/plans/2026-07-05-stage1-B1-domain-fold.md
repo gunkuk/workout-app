@@ -615,7 +615,7 @@ export function applyAccessorySession(
 }
 ```
 
-- [ ] **Step 4: 통과 확인** — `npx vitest run` → 53 passed / `npm run typecheck` → 0
+- [ ] **Step 4: 통과 확인** — `npx vitest run` → 52 passed / `npm run typecheck` → 0
 
 - [ ] **Step 5: Commit**
 
@@ -736,7 +736,7 @@ export function lastSetOf(sets: EffectiveSet[]): EffectiveSet | undefined {
 }
 ```
 
-- [ ] **Step 4: 통과 확인** — `npx vitest run` → 56 passed / typecheck 0
+- [ ] **Step 4: 통과 확인** — `npx vitest run` → 55 passed / typecheck 0
 
 - [ ] **Step 5: Commit**
 
@@ -1132,7 +1132,7 @@ export function foldState(input: FoldInput): FoldState {
 }
 ```
 
-- [ ] **Step 4: 통과 확인** — `npx vitest run` → 67 passed / `npm run typecheck` → 0
+- [ ] **Step 4: 통과 확인** — `npx vitest run` → 66 passed / `npm run typecheck` → 0
 
 - [ ] **Step 5: Commit**
 
@@ -1312,7 +1312,7 @@ describe("nSuns 시드 × fold 통합", () => {
 });
 ```
 
-- [ ] **Step 3: 실행** — `npx vitest run` → 74 passed 기대. 실패 시 fold.ts의 해당 분기를 수정하고 재실행 (수정 내용은 리포트에 기록).
+- [ ] **Step 3: 실행** — `npx vitest run` → 73 passed 기대. 실패 시 fold.ts의 해당 분기를 수정하고 재실행 (수정 내용은 리포트에 기록).
 
 - [ ] **Step 4: typecheck** — `npm run typecheck` → 0
 
@@ -1328,6 +1328,6 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ---
 
 ## 완료 기준 (Plan B1)
-1. `npx vitest run` 전체 통과 (74+), `npm run typecheck` 0 에러.
+1. `npx vitest run` 전체 통과 (73+), `npm run typecheck` 0 에러.
 2. 스펙 §3.6 오라클 중 fold 관련 항목 전부 테스트로 존재: 벤치 주2회 1회 증량 · OHP T2+T1 1회 증량 · cycleIndex 구분 · 정정 재fold(자동 교정+플래그) · skipped 무발효 · 대체 제외 · 악세사리 유예·롤백.
 3. 후속: Plan B2(엔진·워밍업·분석·e1RM — WorkoutPlan 생성), Plan C(앱 셸·UI·PWA).
