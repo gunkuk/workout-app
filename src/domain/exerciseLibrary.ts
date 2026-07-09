@@ -48,7 +48,7 @@ export const EXERCISES: Record<string, ExerciseInfo> = {
   },
   frontSquat: {
     id: "frontSquat",
-    name: "프론트 스쿠트",
+    name: "프론트 스쿼트",
     groups: ["quads", "core"],
   },
   deadlift: {
