@@ -48,7 +48,7 @@ exerciseInfo(id: string): ExerciseInfo | undefined
 | machineCurl | 머신 컬 | biceps | |
 | calfRaise | 카프 레이즈 | calves | |
 | rearDeltFly | 리어델트 플라이 | shoulders | |
-(RDL은 **등록하지 않는다** — 사용자 영구 제외 D5-⑥.)
+(RDL은 **등록하지 않는다** — 사용자 명시 확정("절대 안 함", D5-⑥). 임시 대체로 RDL을 치는 시나리오는 Stage 1 범위 밖 — 라이브러리 밖 운동의 hinge 기본값은 false로 문서화.)
 
 **테스트 (3):** ① nSuns 시드 JSON의 모든 exerciseId가 라이브러리에 존재 ② hinge = {deadlift, sumoDeadlift} 정확히 ③ 모든 항목 groups 1~3개·유효 MuscleGroup.
 
@@ -88,21 +88,22 @@ DEFAULT_PLATES: PlateConfig             // bar 20, [{25,pairs:4,fullDiameter},{2
 generateWarmup(firstWorkWeight: number, opts: { hinge: boolean, cfg: PlateConfig }): PlannedWarmup[]
 PlannedWarmup = { weight: number, reps: number }
 ```
-알고리즘(이대로 — fold급 확정 계약):
-1. 램프 템플릿: 빈바×10 → 50%×5 → 70%×3 → 88%×1 (% = firstWorkWeight 대비, 빈바 = cfg.barWeight).
-2. %스텝은 `roundToStep(w, stepOf(cfg))`로 반올림. 빈바 스텝은 반올림 없음.
-3. **cap = firstWorkWeight − stepOf(cfg)** (불변식: 워밍업 ≤ 첫 작업세트 −1스텝). cap을 **초과하는 스텝은 제거**(램프 자동 축소).
-4. 비힌지: 각 스텝 하한 = barWeight (max(bar, w)). 힌지: 빈바 스텝 **제거**, 하한 = `minHingeLoad(cfg)` — 미달 스텝은 하한으로 **클램프**. **하한 > cap이면 [] 반환**(램프 생략).
-5. 클램프·반올림 후 무게 중복은 첫 스텝만 유지(dedupe), 오름차순 보장.
+알고리즘(이대로 — fold급 확정 계약. **연산 순서가 불변식의 일부**):
+1. `floor` = 힌지면 `minHingeLoad(cfg)`, 비힌지면 `cfg.barWeight`. `cap = firstWorkWeight − stepOf(cfg)`.
+2. **floor > cap이면 즉시 [] 반환**(램프 생략 — 힌지·비힌지 공통 가드. 비힌지에서 bar < base < bar+step 구간이 불변식을 깨는 것을 여기서 차단).
+3. 램프 템플릿: 빈바×10 → 50%×5 → 70%×3 → 88%×1 (% = firstWorkWeight 대비, 빈바 = cfg.barWeight). 힌지는 빈바 스텝 **제거**.
+4. %스텝을 `roundToStep(w, stepOf(cfg))`로 반올림(빈바 스텝은 반올림 없음) → **floor로 하한 클램프** → 그 다음 **cap 초과 스텝 제거**(이 순서 고정: 클램프가 cap 검사보다 먼저).
+5. 무게 중복은 첫 스텝만 유지(dedupe), 오름차순 보장.
 
-**테스트 (7, DEFAULT_PLATES):**
+**테스트 (8, DEFAULT_PLATES):**
 ① base 80 비힌지 → [{20,10},{40,5},{55,3},{70,1}] (56→55, 70.4→70 반올림 확인)
 ② base 105 힌지 → [{60,5},{72.5,3},{92.5,1}] (52.5→60 클램프, 빈바 없음)
 ③ base 25 비힌지 → cap 22.5 → [{20,10},{22.5,1}] (50%=12.5·70%=17.5는 bar 클램프→20 dedupe, 88%=22→반올림 22.5 = cap과 동률이라 생존)
 ④ base 55 힌지(floor 60 > cap 52.5) → []
 ⑤ 불변식 property: base ∈ {40,60,80,100,120,140} 전부에서 모든 스텝 ≤ base−2.5
 ⑥ 오름차순·중복 없음 property (같은 집합)
-⑦ base = bar+step(22.5) 비힌지 → [{20,10}] (cap=20 → 빈바만 생존)
+⑦ base = bar+step(22.5) 비힌지 → [{20,10}] (cap=20=floor → 빈바만 생존)
+⑧ base 21 비힌지 → [] (floor 20 > cap 18.5 — 공통 가드 발동, 불변식 위반 무게가 나오지 않음)
 
 ---
 
@@ -114,6 +115,7 @@ PlannedWarmup = { weight: number, reps: number }
 ```
 nextCyclePos(program, pos): CyclePos      // 그 주 days 배열 순서상 다음 ordinal → 없으면 week+1 첫 day → 없으면 cycleIndex+1, week0 첫 day
 rollingCyclePos(program, sessions: SessionCompleted[]): CyclePos
+  // **program.id와 programId 일치하는 세션만 사용(내부 필터 — 프로그램 전환 후 이전 프로그램 세션의 cyclePos 오적용 차단, 스펙 §2-7)**.
   // completed·skipped 불문 (at,id) 최대 세션의 cyclePos 다음. 없으면 {cycleIndex:0, week:0, dayOrdinal: 첫 day ordinal}
 calendarCyclePos(program, state: ProgramInstanceState, todayISO: string):
   { cycleIndex, week, candidateDayOrdinal: number|null } | { notStarted: true }
@@ -121,11 +123,14 @@ calendarCyclePos(program, state: ProgramInstanceState, todayISO: string):
   // wkIdx = floor(diffDays/7); week = wkIdx % program.weeks.length; cycleIndex = floor(wkIdx / weeks.length)
   // candidateDayOrdinal = 오늘 요일(로컬)과 weekdayHint 일치하는 day의 ordinal, 없으면 null (휴식일)
   // 요일 매핑: getDay() 0~6 → ["일","월","화","수","목","금","토"]
+validateAnchor(program, state): boolean
+  // 스펙 §3.3 제약 "startDate = 사이클-주 첫 훈련일": startDate 요일 == 첫 week 첫 day의 weekdayHint.
+  // 힌트 없는 프로그램이면 true. 생성 시 강제는 UI(Plan C) 몫 — 여기선 판정 함수만 제공.
 ```
-과거 불변성: anchor 변경은 계산에만 영향 — 과거 `SessionCompleted.cyclePos` 스냅샷은 fold가 그대로 쓴다(이미 B1에서 보장). 여기선 **calendar 계산이 세션 이력을 입력으로 받지 않는다**는 것 자체가 보장.
+과거 불변성(스펙 §3.6 "anchor 변경 후 과거 cyclePos 불변"): **구조적 보장** — fold 입력(§3.3)에 ProgramInstanceState가 없고, calendar 계산은 세션 이력을 입력으로 받지 않는다. (B1이 테스트한 것이 아님 — 이 개념은 이 계획에서 처음 도입.) 미래 리팩터가 이 by-construction 보장을 깨는 것을 잡기 위해 회귀 테스트 ⑩을 둔다.
 
-**테스트 (7, nSuns 시드(1주 5day) 기준):**
-① rolling: 세션 없음 → {0,0,1} ② rolling: 마지막 완료 {0,0,3} → {0,0,4} ③ rolling: {0,0,5}(주 마지막) → {1,0,1} (1주 프로그램: week wrap = cycle++) ④ rolling: skipped도 커서 전진 ⑤ calendar: startDate 2026-07-07(화)·today 2026-07-09(목) → {cycleIndex:0, week:0, candidateDayOrdinal:3} ⑥ calendar: today 2026-07-13(월) → diffDays 6 → {cycleIndex:0, week:0, candidateDayOrdinal:null}(월 = 힌트 불일치 휴식일) / today 2026-07-14(화) → diffDays 7 → {cycleIndex:1, week:0, candidateDayOrdinal:1} (1주 프로그램 wrap) ⑦ calendar: today < startDate → notStarted.
+**테스트 (10, nSuns 시드(1주 5day) 기준):**
+① rolling: 세션 없음 → {0,0,1} ② rolling: 마지막 완료 {0,0,3} → {0,0,4} ③ rolling: {0,0,5}(주 마지막) → {1,0,1} (1주 프로그램: week wrap = cycle++) ④ rolling: skipped도 커서 전진 ⑤ calendar: startDate 2026-07-07(화)·today 2026-07-09(목) → {cycleIndex:0, week:0, candidateDayOrdinal:3} ⑥ calendar: today 2026-07-13(월) → diffDays 6 → {cycleIndex:0, week:0, candidateDayOrdinal:null}(월 = 힌트 불일치 휴식일) / today 2026-07-14(화) → diffDays 7 → {cycleIndex:1, week:0, candidateDayOrdinal:1} (1주 프로그램 wrap) ⑦ calendar: today < startDate → notStarted ⑧ validateAnchor: startDate 2026-07-07(화)=첫 day 힌트 화 → true / 2026-07-08(수) → false ⑨ rolling: 다른 programId 세션만 있으면 무시하고 {0,0,1} (전환 시나리오) ⑩ anchor 회귀: 세션 기록 후 startDate를 바꿔도 ①~④(rolling)·기록된 SessionCompleted.cyclePos·foldState 결과가 동일 (calendar 계산만 변함).
 
 ---
 
@@ -141,9 +146,9 @@ buildWorkoutPlan(program, pos: CyclePos, tm: Record<string,number>,
 ```
 - pctOfTM 세트: ref = load.ref ?? slot.exerciseId; weight = `roundToStep(tm[ref]×pct, stepOf(cfg))`; tm[ref] 없으면 slot.missingTM=true·해당 세트 weight null.
 - tracked 세트: `accessories[slot.id]` → weight = state.weight, reps = state.targetReps (스펙 §2-2: 더블 프로그레션 목표는 세트 공통). 상태 없으면 needsInit=true·weight null·reps = spec reps.
-- 워밍업: **첫 세트 load.kind === "pctOfTM"인 슬롯만** `generateWarmup(첫 작업세트 weight, {hinge: exerciseLibrary, cfg})`. tracked(악세사리) 슬롯은 [].
+- 워밍업: **첫 세트 load.kind === "pctOfTM"인 슬롯만** `generateWarmup(첫 작업세트 weight, { hinge: exerciseInfo(slot.exerciseId)?.hinge === true, cfg })`. tracked(악세사리) 슬롯은 []. missingTM 슬롯도 [].
 - `setType:"warmup"`은 판정·통계 제외 대상(이미 fold가 setType 안 봄 — SetRecord 생성 시 UI가 명시, §2-5).
-- **통증일 프리셋**: `lightConventionalPreset(tmDeadlift: number, cfg): PlannedSlot` — exerciseId "deadlift", label "T1(경량)", 5세트×5렙 @ `roundToStep(0.55×TM)`, amrapRole 없음, 워밍업은 힌지 규칙 그대로. **이 프리셋으로 기록되는 SetRecord는 `substitutedFrom:"deadlift"`를 반드시 달아 TM 판정에서 제외**(fold 계약) — 함수 JSDoc에 명시. (0.55 = 스펙 50~60% 범위의 중앙값, 컨트롤러 확정 2026-07-09.)
+- **통증일 프리셋**: `lightConventionalPreset(tmDeadlift: number, cfg): PlannedSlot` — exerciseId "deadlift", label "T1(경량)", 5세트×5렙 @ `roundToStep(0.55×TM)`, amrapRole 없음, 워밍업은 힌지 규칙 그대로. **이 프리셋으로 기록되는 SetRecord는 `substitutedFrom:"deadlift"`를 반드시 달아 TM 판정에서 제외**(fold 계약) — 함수 JSDoc에 명시. (0.55 = 스펙 50~60% 범위의 중앙값, 컨트롤러 확정 2026-07-09. 그날 통증 정도에 따른 범위 내 조정은 세션 UI의 ± 스테퍼/세트 수정으로 — 프리셋은 기본값일 뿐.)
 
 **테스트 (7, 시드+TM {bench:105, ohp:67.5, squat:85, deadlift:140}, DEFAULT_PLATES):**
 ① day5 벤치 T1 9세트 무게 = [80,90,100,95,90,85,80,72.5,67.5] (오라클 — half-up 포함)
@@ -168,13 +173,15 @@ weeklyAnalysis(input: {
   sessions: SessionCompleted[], programs: Map<string, ProgramDefinition>,
   externalSessions?: { cyclePos: {cycleIndex, week}, groups: MuscleGroup[] }[]   // 크로스핏 등 — 빈도만
 }): WeekBucket[]
-WeekBucket = { cycleIndex, week, groups: Partial<Record<MuscleGroup, GroupStats>> }
+WeekBucket = { programId, cycleIndex, week, firstAt: string, groups: Partial<Record<MuscleGroup, GroupStats>> }
+  // programId가 키에 포함 — 프로그램 전환 후 새 인스턴스가 week0부터 재시작해도 이전 프로그램 버킷과 충돌하지 않음(스펙 §2-7 "통계는 경계를 넘어 연속" = UI가 firstAt 시간순으로 이어 보여줌)
 GroupStats = { validSets: number, tonnage: number, frequency: number }
 ```
 규칙(전수):
-- **버킷팅**: 세트 → sessionId로 SessionCompleted 조인 → cyclePos.{cycleIndex,week}. (cyclePos 정정은 `sessionCyclePosOverride` 재사용.) **고아 세트(매칭 세션 없음) 제외. skipped 세션의 세트는 포함**(규칙 발효만 completed 한정 — 통계는 사실).
+- **버킷팅**: 세트 → sessionId로 SessionCompleted 조인 → (programId, cyclePos.{cycleIndex,week}). (cyclePos 정정은 `sessionCyclePosOverride` 재사용.) **고아 세트(매칭 세션 없음) 제외. skipped 세션의 세트는 포함**(규칙 발효만 completed 한정 — 통계는 사실). firstAt = 버킷 내 최소 세션 at.
 - **워밍업 제외**: setType==="warmup" 전부 제외. revoked 세트 제외(applyCorrections가 처리).
-- **티어 판별(구조적 — label 자유 텍스트라 불사용)**: 해당 슬롯 spec에 amrapRole 세트 존재 → T1형 / pctOfTM인데 amrapRole 없음 → T2형 / tracked → 악세사리형. 슬롯 spec은 세션의 programId@Version으로 조회, slotId 매칭. **스펙 조회 실패(슬롯 없음·프로그램 없음) 세트는 rir 규칙만 적용.**
+- **티어 판별**: slot.label이 정확히 "T1"|"T2"|"accessory"면 그것을 사용(시드 전 슬롯 해당). 아니면 구조적 fallback: spec에 amrapRole 세트 존재 → T1형 / pctOfTM인데 amrapRole 없음 → T2형 / tracked → 악세사리형. 슬롯 spec은 세션의 programId@Version으로 조회, slotId 매칭. **스펙 조회 실패(슬롯 없음·프로그램 없음) 세트는 rir 규칙만 적용.**
+  (주의 — volume day: day1 벤치는 label T1 + amrap backoff 1개뿐 → T1 규칙상 유효 = amrap 1 + pct≥0.9 0 = **1세트**. 이것이 스펙 §2-4의 의도된 결과이며 §2-4 ⚠️ 각주("nSuns 구조상 낮게 표시")가 이 특성을 문서화함.)
 - **유효 세트**: T1형 = amrapRole 있는 세트 전부 + spec pct ≥ 0.9 세트 (세트↔spec 매핑 = 해당 세션·슬롯 내 completedAt 순서 k번째 ↔ sets[k]; spec 초과분은 매핑 없음) / T2형 = 해당 세션·슬롯의 **후반 4세트** (completedAt 순) / 악세사리형 = 전 세트. **+ 티어 무관: rir ≤ 4 입력 세트는 유효.** (중복 카운트 없음 — set 단위 OR.)
 - **톤수**: 전 워크 세트 actualWeight×actualReps (유효 여부 무관).
 - **빈도**: 그룹별 distinct sessionId 수 + externalSessions(해당 버킷·그룹) 수.
@@ -182,8 +189,8 @@ GroupStats = { validSets: number, tonnage: number, frequency: number }
 - 대체 세트(substitutedFrom): **실제 수행 exerciseId 기준으로 포함**(TM 판정만 제외지 통계는 사실).
 - 하체 각주(§2-4 ⚠️)는 UI 몫 — analytics는 데이터만.
 
-**테스트 (8):** 시드 프로그램 + 손수 만든 세션 2개(day5 벤치 완주 + day1 랫풀)로:
-① day5 벤치 T1: topSet1+backoff?... 시드 day5 벤치 spec = topSet(0.95)+backoff(마지막) 2개 amrap + pct≥0.9 = 0.9 1개 → 유효 3 (chest·triceps 각각 +3) ② 톤수 = Σ전세트 ③ T2형 8세트 → 유효 4 ④ 악세사리 3세트 전부 유효 ⑤ rir≤4 세트는 T2형 앞세트라도 유효(OR·중복 없음) ⑥ 고아 세트 제외 / skipped 세션 세트 포함 ⑦ warmup setType 제외 ⑧ externalSessions 빈도만 가산(validSets·tonnage 불변).
+**테스트 (10):** 시드 프로그램 + 손수 만든 세션들로:
+① day5 벤치 T1: 시드 day5 벤치 spec = topSet(0.95)+backoff(마지막) 2개 amrap + pct≥0.9 = 0.9 1개 → 유효 3 (chest·triceps 각각 +3) ② 톤수 = Σ전세트 ③ T2형 8세트 → 유효 4 ④ 악세사리 3세트 전부 유효 ⑤ rir≤4 세트는 T2형 앞세트라도 유효(OR·중복 없음) ⑥ 고아 세트 제외 / skipped 세션 세트 포함 ⑦ warmup setType 제외 ⑧ externalSessions 빈도만 가산(validSets·tonnage 불변) ⑨ **day1 벤치 volume 9세트 완주 → chest 유효 정확히 1** (amrap backoff만 — 티어 판별 주의 절의 오라클) ⑩ 프로그램 전환: programId 다른 두 세션이 같은 {0,0}이어도 **버킷 2개 분리**(programId 키), firstAt으로 시간순 정렬 가능.
 
 ---
 
@@ -221,5 +228,7 @@ tmHistory(input: FoldInput, exerciseId): { at, value }[]
 ## 실행 순서·검증
 
 순서: T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8 (T4는 T2와 독립이나 순차 유지).
-누적 기대 테스트: 73 → T1 76 → T2 82 → T3 89 → T4 96 → T5 103 → T6 111 → T7 116 → T8 120 (각 태스크 열거 케이스 = 최소치, 초과 허용 — 리포트에 실측 기재).
+누적 기대 테스트: 73 → T1 76 → T2 82 → T3 90 → T4 100 → T5 107 → T6 117 → T7 122 → T8 126 (각 태스크 열거 케이스 = 최소치, 초과 허용 — 리포트에 실측 기재).
+
+> 검증 이력: 초안 커밋 57f5967 → 3렌즈 적대 검증(2026-07-09, 산수 클린 / 코드정합 2건 / 스펙 4건 반영: 워밍업 연산순서 가드 통일·validateAnchor·rolling programId 필터·anchor 회귀 테스트·WeekBucket programId 키·volume day 오라클. RDL 등록 제안은 사용자 확정 우선으로 기각, 0.55 프리셋은 UI 조정 여지 명시로 종결).
 완료 정의: `npx vitest run` 전체 통과 + `npm run typecheck` 0 + 레저 기록.
