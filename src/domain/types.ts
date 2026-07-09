@@ -129,3 +129,12 @@ export type FoldState = {
   /** 재검토 필요 플래그가 붙은 DecisionEvent id들 (UI 전용 — fold 값엔 영향 없음) */
   reviewFlags: string[];
 };
+
+/** 프로그램 인스턴스 상태 (스펙 §3.3) — calendar면 anchor.startDate(YYYY-MM-DD) 필수 */
+export type ProgramInstanceState = {
+  programId: string;
+  programVersion: number;
+  mode: "calendar" | "rolling";
+  anchor: { startDate?: string };
+  schemaVersion: 1;
+};
