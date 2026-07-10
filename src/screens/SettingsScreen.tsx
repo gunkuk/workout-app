@@ -1,5 +1,6 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { exportSnapshot, importSnapshot, shareOrDownloadSnapshot, parseSnapshotJSON } from "../lib/backup";
+import { ProgramLibrary } from "../components/ProgramLibrary";
 
 /**
  * Task 7(C2) — 최소 설정 화면: 백업 내보내기/가져오기 버튼만(스펙 §2-8 범위, 그 외 설정 항목 없음).
@@ -54,6 +55,7 @@ export function SettingsScreen() {
       <h2>설정</h2>
       {error && <div role="alert">{error}</div>}
       {status && <div role="status">{status}</div>}
+      <ProgramLibrary />
       <section>
         <h3>백업</h3>
         <button type="button" onClick={handleExport} disabled={exporting}>

@@ -8,6 +8,9 @@ import {
   appendSession,
   appendDecision,
   seedOnboarding,
+  upsertProgramVersion,
+  addToLibrary,
+  setInstanceState,
 } from "../storage/eventStore";
 import { foldState } from "../domain/fold";
 import { rollingCyclePos } from "../domain/cyclePos";
@@ -52,6 +55,10 @@ export type ProgramStoreState = {
   ): Promise<void>;
   /** 제안 수락 결정 기록 후 재fold. */
   acceptProposal(decision: DecisionEvent): Promise<void>;
+  /** 가져오기(파일/URL) — 프로그램 버전 upsert + 라이브러리 등록(idempotent) 후 재fold(Stage1-C3 T2). */
+  importProgram(program: ProgramDefinition): Promise<void>;
+  /** 라이브러리 전환 — 새 InstanceState 설정 후 재fold. 과거 이력(SetRecord 등)은 불변(Stage1-C3 T2, 스펙 §2-7). */
+  switchProgram(instanceState: ProgramInstanceState): Promise<void>;
 };
 
 const EMPTY_STATE = {
@@ -131,6 +138,17 @@ export const useProgramStore = create<ProgramStoreState>()((set, get) => ({
 
   async acceptProposal(decision) {
     await appendDecision(decision);
+    await get().load();
+  },
+
+  async importProgram(program) {
+    await upsertProgramVersion(program);
+    await addToLibrary(program.id, new Date().toISOString());
+    await get().load();
+  },
+
+  async switchProgram(instanceState) {
+    await setInstanceState(instanceState);
     await get().load();
   },
 }));
