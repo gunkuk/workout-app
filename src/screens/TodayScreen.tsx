@@ -3,8 +3,11 @@ import { useProgramStore } from "../store/programStore";
 import { appendSet, appendCorrection, appendSession, loadFoldInput } from "../storage/eventStore";
 import { applyCorrections } from "../domain/corrections";
 import { stepOf, DEFAULT_PLATES } from "../domain/plates";
+import { lightConventionalPreset } from "../domain/programEngine";
 import { SetRow } from "../components/SetRow";
 import { ProposalCard } from "../components/ProposalCard";
+import { PlateBreakdown } from "../components/PlateBreakdown";
+import { ExerciseSwap } from "../components/ExerciseSwap";
 import type { SetRecord, SessionCompleted, CorrectionRecord, CyclePos } from "../domain/types.ts";
 import type { PlannedSlot, PlannedSet } from "../domain/programEngine";
 
@@ -35,6 +38,9 @@ function nowISO(): string {
 
 const STEP_WEIGHT = stepOf(DEFAULT_PLATES);
 
+/** lightConventionalPreset(programEngine.ts)이 하드코딩한 slotId — 데드리프트 슬롯 1개 가정(계획 "참고" 항목). */
+const LIGHT_DEADLIFT_SLOT_ID = "lightConventionalDeadlift";
+
 export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
   const status = useProgramStore((s) => s.status);
   const todayPlan = useProgramStore((s) => s.todayPlan);
@@ -42,10 +48,15 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
   const activeProgram = useProgramStore((s) => s.activeProgram);
   const refreshAfterWrite = useProgramStore((s) => s.refreshAfterWrite);
   const pendingProposals = useProgramStore((s) => s.pendingProposals);
+  const tm = useProgramStore((s) => s.tm);
 
   const [recorded, setRecorded] = useState<Record<string, SetRecord>>({});
   const [error, setError] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
+  /** slotId(현재 표시 중인, 스왑 후 슬롯) -> 원래 exerciseId. handleComplete의 5번째 인자(substitutedFrom) 배선용. */
+  const [swappedSlots, setSwappedSlots] = useState<Record<string, string>>({});
+  /** slotId -> 스킵 여부. sessionStorage(브라우저 세션 한정)로 마운트 시 복원. */
+  const [skippedSlotIds, setSkippedSlotIds] = useState<Record<string, boolean>>({});
 
   const sessionId =
     activeProgram && todayPos ? sessionIdFor(activeProgram.id, activeProgram.version, todayPos) : null;
@@ -98,8 +109,21 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
     };
   }, [sessionId, todayPlan]);
 
+  // 스킵 상태 복원 — sessionStorage(브라우저 세션 한정, C3에서 이벤트화로 정식 영속 예정)에서
+  // 오늘 슬롯들의 스킵 플래그를 읽어온다(키 형식: `skip:${sessionId}:${slotId}`).
+  useEffect(() => {
+    if (!sessionId || !todayPlan) return;
+    const restored: Record<string, boolean> = {};
+    for (const slot of todayPlan.slots) {
+      if (sessionStorage.getItem(`skip:${sessionId}:${slot.slotId}`) === "1") {
+        restored[slot.slotId] = true;
+      }
+    }
+    setSkippedSlotIds(restored);
+  }, [sessionId, todayPlan]);
+
   const handleComplete = useCallback(
-    (id: string, slot: PlannedSlot, planned: PlannedSet, weight: number, reps: number) => {
+    (id: string, slot: PlannedSlot, planned: PlannedSet, weight: number, reps: number, swappedFrom?: string) => {
       if (!sessionId) return;
       const rec: SetRecord = {
         id,
@@ -112,6 +136,7 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
         actualWeight: weight,
         actualReps: reps,
         amrapRole: planned.amrapRole,
+        substitutedFrom: swappedFrom,
         completedAt: nowISO(),
         schemaVersion: 1,
       };
@@ -171,13 +196,67 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
     }
   }, [sessionId, todayPos, activeProgram, refreshAfterWrite, onSessionComplete]);
 
+  const isSkipped = useCallback((slotId: string) => skippedSlotIds[slotId] === true, [skippedSlotIds]);
+
+  const handleSkip = useCallback(
+    (slotId: string) => {
+      if (!sessionId) return;
+      sessionStorage.setItem(`skip:${sessionId}:${slotId}`, "1");
+      setSkippedSlotIds((prev) => ({ ...prev, [slotId]: true }));
+    },
+    [sessionId],
+  );
+
+  const handleUnskip = useCallback(
+    (slotId: string) => {
+      if (!sessionId) return;
+      sessionStorage.removeItem(`skip:${sessionId}:${slotId}`);
+      setSkippedSlotIds((prev) => {
+        const next = { ...prev };
+        delete next[slotId];
+        return next;
+      });
+    },
+    [sessionId],
+  );
+
+  /** 통증일(경량) 프리셋 적용. tm[exerciseId] 미시드면 무동작(데드리프트는 항상 4개 시드 TM에 포함되므로
+   *  실사용에서 도달하지 않는 방어적 가드 — lightConventionalPreset에 undefined가 흘러가는 것을 막는다). */
+  const handlePainDay = useCallback(
+    (originalSlot: PlannedSlot) => {
+      if (tm[originalSlot.exerciseId] === undefined) return;
+      setSwappedSlots((prev) => ({ ...prev, [LIGHT_DEADLIFT_SLOT_ID]: originalSlot.exerciseId }));
+    },
+    [tm],
+  );
+
+  const handleRestoreOriginal = useCallback(() => {
+    setSwappedSlots((prev) => {
+      const next = { ...prev };
+      delete next[LIGHT_DEADLIFT_SLOT_ID];
+      return next;
+    });
+  }, []);
+
   if (status !== "ready" || !todayPlan || !sessionId) {
     return <div>로딩 중...</div>;
   }
 
-  const allWorkSetsComplete = todayPlan.slots.every(
-    (slot) =>
+  // 원본 슬롯 옆에, 통증일로 교체된 경우 그 대체 슬롯을 함께 들고 있는 표시용 목록.
+  // swapped=true인 항목만 slot !== original (참조가 다른 lightConventionalPreset 결과).
+  const effectiveSlots = todayPlan.slots.map((original) => {
+    if (original.exerciseId !== "deadlift" || swappedSlots[LIGHT_DEADLIFT_SLOT_ID] === undefined) {
+      return { original, slot: original, swapped: false };
+    }
+    const tmDeadlift = tm.deadlift;
+    if (tmDeadlift === undefined) return { original, slot: original, swapped: false };
+    return { original, slot: lightConventionalPreset(tmDeadlift, DEFAULT_PLATES), swapped: true };
+  });
+
+  const allWorkSetsComplete = effectiveSlots.every(
+    ({ slot }) =>
       slot.missingTM ||
+      isSkipped(slot.slotId) ||
       slot.sets.every((_, i) => recorded[setIdFor(sessionId, slot.slotId, "work", i)] !== undefined),
   );
 
@@ -188,9 +267,18 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
       ))}
       <h2>{todayPlan.dayName}</h2>
       {error && <div role="alert">{error}</div>}
-      {todayPlan.slots.map((slot) => (
-        <section key={slot.slotId}>
+      {effectiveSlots.map(({ original, slot, swapped }) => (
+        <section key={original.slotId}>
           <h3>{slot.label}</h3>
+          <ExerciseSwap
+            slot={slot}
+            skipped={isSkipped(slot.slotId)}
+            onSkip={() => handleSkip(slot.slotId)}
+            onUnskip={() => handleUnskip(slot.slotId)}
+            swapped={swapped}
+            onPainDay={() => handlePainDay(original)}
+            onRestoreOriginal={handleRestoreOriginal}
+          />
           {slot.missingTM ? (
             <p>TM 필요 — 온보딩에서 시드해주세요.</p>
           ) : (
@@ -203,15 +291,17 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
               {slot.sets.map((s, i) => {
                 const id = setIdFor(sessionId, slot.slotId, "work", i);
                 return (
-                  <SetRow
-                    key={id}
-                    id={id}
-                    planned={s}
-                    recorded={recorded[id]}
-                    stepWeight={STEP_WEIGHT}
-                    onComplete={(w, r) => handleComplete(id, slot, s, w, r)}
-                    onCorrect={(w, r) => handleCorrect(id, w, r)}
-                  />
+                  <div key={id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <SetRow
+                      id={id}
+                      planned={s}
+                      recorded={recorded[id]}
+                      stepWeight={STEP_WEIGHT}
+                      onComplete={(w, r) => handleComplete(id, slot, s, w, r, swappedSlots[slot.slotId])}
+                      onCorrect={(w, r) => handleCorrect(id, w, r)}
+                    />
+                    <PlateBreakdown weight={s.weight} cfg={DEFAULT_PLATES} />
+                  </div>
                 );
               })}
             </>
