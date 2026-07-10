@@ -76,6 +76,8 @@ const EMPTY_STATE = {
   pendingProposals: [],
   todayPos: undefined,
   todayPlan: null,
+  // calendar 모드에서 empty로 전환될 때 이전 값이 잔존하지 않도록 명시 리셋
+  restDay: undefined,
 };
 
 export const useProgramStore = create<ProgramStoreState>()((set, get) => ({
