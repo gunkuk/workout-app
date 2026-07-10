@@ -11,6 +11,7 @@ import {
   addToLibrary,
   setInstanceState,
 } from "../storage/eventStore";
+import { isIOS } from "./platform";
 import type {
   SetRecord,
   CorrectionRecord,
@@ -101,16 +102,10 @@ export async function importSnapshot(data: object): Promise<void> {
   }
 }
 
-/** iOS 감지 — OnboardingScreen.tsx의 UA sniff 패턴 재사용(그 파일은 이 태스크 수정 범위 밖이라 함수를
- *  직접 import하지 않고 동일한 판정 로직만 재사용한다). */
-export function isIOS(): boolean {
-  const ua = navigator.userAgent;
-  return ua.includes("iPhone") || ua.includes("iPad");
-}
-
 /**
  * 스냅샷을 파일로 내보내기 — iOS: Web Share API(파일 첨부, navigator.canShare가 지원할 때만) 시도 →
- * 미지원 시 클립보드 텍스트 복사. 그 외 플랫폼: <a download> blob URL 클릭.
+ * 미지원 시 클립보드 텍스트 복사 → 클립보드 API도 없으면(구형 Safari 등) 아래 다운로드 분기로 폴스루.
+ * 그 외 플랫폼(또는 위 iOS 분기가 전부 불가한 경우): <a download> blob URL 클릭.
  * 순수 로직만 담당(호출부인 SettingsScreen이 에러 표시를 맡는다) — 실패 시 그대로 throw.
  */
 export async function shareOrDownloadSnapshot(snapshot: BackupSnapshot): Promise<void> {
@@ -127,8 +122,10 @@ export async function shareOrDownloadSnapshot(snapshot: BackupSnapshot): Promise
       await navigator.share({ files: [file], title: "운동 백업" });
       return;
     }
-    await navigator.clipboard.writeText(json);
-    return;
+    if (typeof navigator.clipboard?.writeText === "function") {
+      await navigator.clipboard.writeText(json);
+      return;
+    }
   }
 
   const blob = new Blob([json], { type: "application/json" });

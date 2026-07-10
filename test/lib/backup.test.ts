@@ -225,6 +225,24 @@ describe("backup", () => {
     expect(revokeObjectURLMock).toHaveBeenCalledTimes(1);
   });
 
+  it("⑤-2 iOS + Web Share(파일) 미지원 + 클립보드 API 부재 → <a download> blob URL 다운로드로 폴스루", async () => {
+    mockUA("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15");
+    Object.defineProperty(navigator, "share", { value: undefined, configurable: true });
+    Object.defineProperty(navigator, "canShare", { value: undefined, configurable: true });
+    Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
+    const createObjectURLMock = vi.fn().mockReturnValue("blob:mock-url");
+    const revokeObjectURLMock = vi.fn();
+    Object.defineProperty(URL, "createObjectURL", { value: createObjectURLMock, configurable: true });
+    Object.defineProperty(URL, "revokeObjectURL", { value: revokeObjectURLMock, configurable: true });
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    await shareOrDownloadSnapshot(EMPTY_SNAPSHOT);
+
+    expect(createObjectURLMock).toHaveBeenCalledTimes(1);
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURLMock).toHaveBeenCalledTimes(1);
+  });
+
   it("⑥ 잘못된 JSON → 파싱 실패를 명시 에러로 던짐(크래시 없음)", () => {
     expect(() => parseSnapshotJSON("{이건 JSON이 아님")).toThrow(/JSON/);
   });

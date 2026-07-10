@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useProgramStore } from "../store/programStore";
 import { appendDecision } from "../storage/eventStore";
+import { nowISO } from "../lib/time";
 import type { Proposal, DecisionEvent } from "../domain/types.ts";
 
 export type ProposalCardProps = {
@@ -19,10 +20,6 @@ function kindFor(type: Proposal["type"]): DecisionEvent["kind"] {
     case "accessoryRollback":
       return "rollbackAccepted";
   }
-}
-
-function nowISO(): string {
-  return new Date().toISOString();
 }
 
 /**

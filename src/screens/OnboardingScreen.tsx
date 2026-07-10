@@ -1,6 +1,8 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { upsertProgramVersion, addToLibrary, setInstanceState, appendDecision } from "../storage/eventStore";
 import { useProgramStore } from "../store/programStore";
+import { nowISO } from "../lib/time";
+import { isIOS } from "../lib/platform";
 import type { DecisionEvent, DecisionTarget, ProgramDefinition } from "../domain/types.ts";
 // JSON import 방식: tsconfig에 resolveJsonModule이 없어(이 태스크는 tsconfig 수정 범위 밖) 네이티브
 // `import seed from "...json"`은 typecheck 실패. Vite의 `?raw` 쿼리(문자열 import, vite/client.d.ts에
@@ -32,17 +34,8 @@ const T2_EXERCISES: ExerciseInput[] = [
 
 const ALL_EXERCISES = [...T1_EXERCISES, ...T2_EXERCISES];
 
-function nowISO(): string {
-  return new Date().toISOString();
-}
-
 function isStandalone(): boolean {
   return window.matchMedia("(display-mode: standalone)").matches;
-}
-
-function isIOS(): boolean {
-  const ua = navigator.userAgent;
-  return ua.includes("iPhone") || ua.includes("iPad");
 }
 
 export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {

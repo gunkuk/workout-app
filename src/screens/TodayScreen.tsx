@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useProgramStore } from "../store/programStore";
 import { appendSet, appendCorrection, appendSession, loadFoldInput } from "../storage/eventStore";
+import { nowISO } from "../lib/time";
 import { applyCorrections } from "../domain/corrections";
 import { stepOf, DEFAULT_PLATES } from "../domain/plates";
 import { lightConventionalPreset } from "../domain/programEngine";
@@ -31,10 +32,6 @@ export function sessionIdFor(programId: string, programVersion: number, pos: Cyc
 /** 슬롯 내 세트 1개의 결정론적 SetRecord id — 복원 시 매칭 키 겸 중복 자동기록 방지 키 */
 function setIdFor(sessionId: string, slotId: string, setType: "work" | "warmup", index: number): string {
   return `${sessionId}-${slotId}-${setType}-${index}`;
-}
-
-function nowISO(): string {
-  return new Date().toISOString();
 }
 
 const STEP_WEIGHT = stepOf(DEFAULT_PLATES);
