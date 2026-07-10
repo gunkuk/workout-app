@@ -22,7 +22,11 @@ const EMPTY_TEXT = "데이터 부족";
  */
 export function LineChart({ points, width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT }: LineChartProps) {
   if (points.length < 2) {
-    return <div data-testid="linechart-empty">{EMPTY_TEXT}</div>;
+    return (
+      <div data-testid="linechart-empty" className="linechart-empty">
+        {EMPTY_TEXT}
+      </div>
+    );
   }
 
   const values = points.map((p) => p.value);
@@ -47,12 +51,19 @@ export function LineChart({ points, width = DEFAULT_WIDTH, height = DEFAULT_HEIG
   ];
 
   return (
-    <svg data-testid="linechart" viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img">
+    <svg
+      data-testid="linechart"
+      className="linechart"
+      viewBox={`0 0 ${width} ${height}`}
+      width={width}
+      height={height}
+      role="img"
+    >
       <polyline
         data-testid="linechart-polyline"
+        className="linechart-polyline"
         points={coords.map((c) => `${c.x},${c.y}`).join(" ")}
         fill="none"
-        stroke="currentColor"
         strokeWidth={2}
       />
       {labelIndices.map((i) => {

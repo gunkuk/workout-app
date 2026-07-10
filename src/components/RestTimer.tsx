@@ -82,31 +82,35 @@ export function RestTimer({ onDone }: RestTimerProps) {
 
   if (!started) {
     return (
-      <div data-testid="rest-timer">
-        <span data-testid="rest-timer-display">{toSeconds(durationMs)}초</span>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button type="button" aria-label="휴식시간 감소" onClick={() => adjust(-STEP_MS)}>
+      <div data-testid="rest-timer" className="rest-timer">
+        <span data-testid="rest-timer-display" className="rest-timer-display">
+          {toSeconds(durationMs)}초
+        </span>
+        <div className="rest-timer-controls">
+          <button type="button" aria-label="휴식시간 감소" className="stepper-btn" onClick={() => adjust(-STEP_MS)}>
             −15초
           </button>
-          <button type="button" aria-label="휴식시간 증가" onClick={() => adjust(STEP_MS)}>
+          <button type="button" aria-label="휴식시간 증가" className="stepper-btn" onClick={() => adjust(STEP_MS)}>
             +15초
           </button>
+          <button type="button" className="btn btn-primary" onClick={handleStart}>
+            시작
+          </button>
         </div>
-        <button type="button" onClick={handleStart}>
-          시작
-        </button>
       </div>
     );
   }
 
   return (
-    <div data-testid="rest-timer">
+    <div data-testid="rest-timer" className="rest-timer">
       {done ? (
-        <span data-testid="rest-timer-display" aria-label="휴식 완료">
+        <span data-testid="rest-timer-display" aria-label="휴식 완료" className="rest-timer-display">
           완료
         </span>
       ) : (
-        <span data-testid="rest-timer-display">{toSeconds(remainingMs)}초</span>
+        <span data-testid="rest-timer-display" className="rest-timer-display">
+          {toSeconds(remainingMs)}초
+        </span>
       )}
     </div>
   );

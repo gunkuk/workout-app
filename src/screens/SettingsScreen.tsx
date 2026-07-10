@@ -85,14 +85,16 @@ export function SettingsScreen() {
 
   return (
     <div>
-      <a href="#/today">← 오늘로 돌아가기</a>
-      <h2>설정</h2>
-      {error && <div role="alert">{error}</div>}
-      {status && <div role="status">{status}</div>}
+      <a href="#/today" className="back-link">
+        ← 오늘로 돌아가기
+      </a>
+      <h2 className="day-header">설정</h2>
+      {error && <div role="alert" className="alert">{error}</div>}
+      {status && <div role="status" className="status-banner">{status}</div>}
       <ProgramLibrary />
-      <section>
+      <section className="settings-card">
         <h3>TM 수동 편집</h3>
-        {tmError && <div role="alert">{tmError}</div>}
+        {tmError && <div role="alert" className="alert">{tmError}</div>}
         <ul>
           {Object.entries(tm).map(([exerciseId, value]) => (
             <li key={exerciseId}>
@@ -100,25 +102,26 @@ export function SettingsScreen() {
               <input
                 type="number"
                 data-testid={`tm-input-${exerciseId}`}
+                className="free-input"
                 value={tmEdits[exerciseId] ?? ""}
                 placeholder={String(value)}
                 onChange={(e) =>
                   setTmEdits((prev) => ({ ...prev, [exerciseId]: e.target.value }))
                 }
               />
-              <button type="button" onClick={() => handleTmSave(exerciseId)}>
+              <button type="button" className="btn btn-secondary" onClick={() => handleTmSave(exerciseId)}>
                 저장
               </button>
             </li>
           ))}
         </ul>
       </section>
-      <section>
+      <section className="settings-card">
         <h3>백업</h3>
-        <button type="button" onClick={handleExport} disabled={exporting}>
+        <button type="button" className="btn btn-primary" onClick={handleExport} disabled={exporting}>
           내보내기
         </button>
-        <label>
+        <label className="form-label">
           가져오기
           <input
             ref={fileInputRef}

@@ -97,24 +97,27 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
 
   return (
     <div>
-      <h2>온보딩 — 트레이닝 맥스(TM) 설정</h2>
-      {error && <div role="alert">{error}</div>}
+      <h2 className="day-header">온보딩 — 트레이닝 맥스(TM) 설정</h2>
+      {error && <div role="alert" className="alert">{error}</div>}
       <form onSubmit={handleSubmit}>
         {ALL_EXERCISES.map((ex) => (
-          <div key={ex.id}>
-            <label htmlFor={`tm-${ex.id}`}>{ex.label}</label>
+          <div key={ex.id} className="form-field">
+            <label htmlFor={`tm-${ex.id}`} className="form-label">
+              {ex.label}
+            </label>
             <input
               id={`tm-${ex.id}`}
               data-testid={`tm-input-${ex.id}`}
               type="number"
               step="0.5"
+              className="form-input"
               placeholder={ex.placeholder !== undefined ? String(ex.placeholder) : undefined}
               value={values[ex.id] ?? ""}
               onChange={(e) => handleChange(ex.id, e.target.value)}
             />
           </div>
         ))}
-        <button type="submit" disabled={submitting}>
+        <button type="submit" className="btn-submit-primary" disabled={submitting}>
           시작하기
         </button>
       </form>

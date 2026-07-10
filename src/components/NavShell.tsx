@@ -29,18 +29,9 @@ function SettingsEntry() {
       type="button"
       aria-label="설정"
       data-testid="settings-entry"
+      className="settings-entry"
       onClick={() => {
         window.location.hash = "/settings";
-      }}
-      style={{
-        position: "fixed",
-        top: 8,
-        right: 8,
-        zIndex: 10,
-        border: "none",
-        background: "transparent",
-        fontSize: 20,
-        cursor: "pointer",
       }}
     >
       ⚙
@@ -52,30 +43,15 @@ export function NavShell({ active }: NavShellProps) {
   return (
     <>
       <SettingsEntry />
-      <nav
-        aria-label="주요 탐색"
-        style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          display: "flex",
-          borderTop: "1px solid #ccc",
-          background: "#fff",
-        }}
-      >
+      <nav aria-label="주요 탐색" className="nav-shell">
         {TABS.map((tab) => (
           <button
             key={tab.route}
             type="button"
             aria-current={active === tab.route ? "page" : undefined}
+            className={`nav-tab${active === tab.route ? " nav-tab-active" : ""}`}
             onClick={() => {
               window.location.hash = tab.hash;
-            }}
-            style={{
-              flex: 1,
-              padding: "12px 0",
-              fontWeight: active === tab.route ? "bold" : "normal",
             }}
           >
             {tab.label}

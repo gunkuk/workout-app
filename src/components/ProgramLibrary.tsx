@@ -115,10 +115,10 @@ export function ProgramLibrary() {
   }
 
   return (
-    <section>
+    <section className="settings-card">
       <h3>프로그램 라이브러리</h3>
       {errors.length > 0 && (
-        <div role="alert">
+        <div role="alert" className="alert">
           <ul>
             {errors.map((err, i) => (
               <li key={i}>{err}</li>
@@ -133,7 +133,7 @@ export function ProgramLibrary() {
             <li key={program.id}>
               {program.name} (v{program.version}) {isActive && <strong>활성</strong>}
               {!isActive && (
-                <button type="button" onClick={() => handleSwitch(program)} disabled={busy}>
+                <button type="button" className="btn btn-secondary" onClick={() => handleSwitch(program)} disabled={busy}>
                   이 프로그램으로 전환
                 </button>
               )}
@@ -141,8 +141,8 @@ export function ProgramLibrary() {
           );
         })}
       </ul>
-      <div>
-        <label>
+      <div className="form-field">
+        <label className="form-label">
           파일에서 가져오기
           <input
             ref={fileInputRef}
@@ -158,7 +158,7 @@ export function ProgramLibrary() {
         <section>
           <h3>모드 설정</h3>
           <p>현재 모드: {instanceState?.mode === "calendar" ? "calendar" : "rolling"}</p>
-          {modeError && <div role="alert">{modeError}</div>}
+          {modeError && <div role="alert" className="alert">{modeError}</div>}
           <label>
             <input
               type="radio"
@@ -180,32 +180,34 @@ export function ProgramLibrary() {
             calendar
           </label>
           {modeSelection === "calendar" && (
-            <label>
+            <label className="form-label">
               시작일
               <input
                 type="text"
                 placeholder="YYYY-MM-DD"
+                className="form-input"
                 value={startDateInput}
                 onChange={(e) => setStartDateInput(e.target.value)}
               />
             </label>
           )}
-          <button type="button" onClick={handleModeApply}>
+          <button type="button" className="btn btn-primary" onClick={handleModeApply}>
             모드 적용
           </button>
         </section>
       )}
-      <div>
-        <label>
+      <div className="form-field">
+        <label className="form-label">
           URL에서 가져오기
           <input
             type="text"
+            className="form-input"
             value={urlValue}
             onChange={(e) => setUrlValue(e.target.value)}
             disabled={busy}
           />
         </label>
-        <button type="button" onClick={handleUrlImport} disabled={busy}>
+        <button type="button" className="btn btn-secondary" onClick={handleUrlImport} disabled={busy}>
           URL로 가져오기
         </button>
       </div>

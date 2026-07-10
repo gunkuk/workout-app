@@ -16,14 +16,30 @@ const FALLBACK_TEXT = "직접 계산 필요";
  */
 export function PlateBreakdown({ weight, cfg }: PlateBreakdownProps) {
   if (weight === null) {
-    return <span data-testid="plate-breakdown">{FALLBACK_TEXT}</span>;
+    return (
+      <span data-testid="plate-breakdown" className="plate-breakdown">
+        {FALLBACK_TEXT}
+      </span>
+    );
   }
   const plates = platesFor(cfg, weight);
   if (plates === null) {
-    return <span data-testid="plate-breakdown">{FALLBACK_TEXT}</span>;
+    return (
+      <span data-testid="plate-breakdown" className="plate-breakdown">
+        {FALLBACK_TEXT}
+      </span>
+    );
   }
   if (plates.length === 0) {
-    return <span data-testid="plate-breakdown">바만</span>;
+    return (
+      <span data-testid="plate-breakdown" className="plate-breakdown">
+        바만
+      </span>
+    );
   }
-  return <span data-testid="plate-breakdown">{plates.join(" + ")}</span>;
+  return (
+    <span data-testid="plate-breakdown" className="plate-breakdown">
+      {plates.join(" + ")}
+    </span>
+  );
 }

@@ -49,16 +49,16 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
   }
 
   return (
-    <div data-testid="proposal-card" style={{ border: "1px solid #ccc", padding: 8, marginBottom: 8 }}>
+    <div data-testid="proposal-card" className="proposal-card">
       <p>{proposal.label}</p>
-      {error && <div role="alert">{error}</div>}
-      <div style={{ display: "flex", gap: 8 }}>
+      {error && <div role="alert" className="alert">{error}</div>}
+      <div className="proposal-options">
         {proposal.options.map((opt, i) => (
-          <button key={i} type="button" onClick={() => handleSelect(opt)}>
+          <button key={i} type="button" className="proposal-option-btn" onClick={() => handleSelect(opt)}>
             {opt}kg
           </button>
         ))}
-        <button type="button" onClick={() => {}}>
+        <button type="button" className="proposal-hold-btn" onClick={() => {}}>
           동결/보류
         </button>
       </div>

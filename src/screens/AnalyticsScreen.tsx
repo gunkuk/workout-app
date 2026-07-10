@@ -115,10 +115,10 @@ export function AnalyticsScreen() {
   }
 
   const externalSection = activeProgram && (
-    <section>
-      <h3>외부 세션 추가</h3>
+    <section className="slot-section">
+      <h3 className="slot-eyebrow">외부 세션 추가</h3>
       {(Object.entries(GROUP_LABELS) as [MuscleGroup, string][]).map(([group, label]) => (
-        <label key={group}>
+        <label key={group} className={`group-chip${selectedGroups.includes(group) ? " is-checked" : ""}`}>
           <input
             type="checkbox"
             data-testid={`external-group-${group}`}
@@ -130,6 +130,7 @@ export function AnalyticsScreen() {
       ))}
       <button
         type="button"
+        className="btn btn-primary"
         onClick={handleAddExternal}
         disabled={extBusy || !externalCyclePos || selectedGroups.length === 0}
       >
@@ -150,17 +151,21 @@ export function AnalyticsScreen() {
     manualIndex !== null && manualIndex >= 0 && manualIndex < programBuckets.length ? manualIndex : defaultIndex;
 
   if (error) {
-    return <div role="alert">{error}</div>;
+    return (
+      <div role="alert" className="alert">
+        {error}
+      </div>
+    );
   }
 
   if (foldInput === null || !activeProgram) {
-    return <div>로딩 중...</div>;
+    return <div className="loading-state">로딩 중...</div>;
   }
 
   if (index === -1) {
     return (
       <div>
-        <h2>주간 분석</h2>
+        <h2 className="day-header">주간 분석</h2>
         <p>아직 분석할 세션 데이터가 없습니다</p>
         {externalSection}
       </div>
@@ -172,10 +177,11 @@ export function AnalyticsScreen() {
 
   return (
     <div>
-      <h2>주간 분석</h2>
-      <div>
+      <h2 className="day-header">주간 분석</h2>
+      <div className="set-row-controls">
         <button
           type="button"
+          className="btn btn-secondary"
           onClick={() => setManualIndex(Math.max(0, index - 1))}
           disabled={index === 0}
         >
@@ -187,13 +193,14 @@ export function AnalyticsScreen() {
         </span>
         <button
           type="button"
+          className="btn btn-secondary"
           onClick={() => setManualIndex(Math.min(programBuckets.length - 1, index + 1))}
           disabled={index === programBuckets.length - 1}
         >
           다음 주
         </button>
       </div>
-      <table>
+      <table className="analytics-table">
         <thead>
           <tr>
             <th>부위</th>
@@ -213,7 +220,7 @@ export function AnalyticsScreen() {
           ))}
         </tbody>
       </table>
-      <p>{LOWER_BODY_FOOTNOTE}</p>
+      <p className="analytics-footnote">{LOWER_BODY_FOOTNOTE}</p>
       {externalSection}
     </div>
   );

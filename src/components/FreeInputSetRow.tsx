@@ -55,13 +55,14 @@ export function FreeInputSetRow({ id, planned, recorded, onComplete, onCorrect }
   }
 
   return (
-    <SetRowShell id={id} onClick={handleRowClick}>
+    <SetRowShell id={id} onClick={handleRowClick} completed={!!recorded && !editing}>
       {showEditable ? (
-        <span onClick={stop} style={{ display: "flex", gap: 4, alignItems: "center" }}>
+        <span onClick={stop} className="set-row-controls">
           <input
             aria-label="무게 입력"
             type="number"
             placeholder="무게(kg)"
+            className="free-input"
             value={weightText}
             onChange={(e) => setWeightText(e.target.value)}
           />
@@ -69,19 +70,22 @@ export function FreeInputSetRow({ id, planned, recorded, onComplete, onCorrect }
             aria-label="렙 입력"
             type="number"
             placeholder={String(planned.reps)}
+            className="free-input"
             value={repsText}
             onChange={(e) => setRepsText(e.target.value)}
           />
-          <button type="button" onClick={submitFree}>
+          <button type="button" className="btn btn-secondary" onClick={submitFree}>
             {recorded ? "저장" : "완료"}
           </button>
         </span>
       ) : (
         <>
-          <span>
+          <span className="set-row-value">
             {weight}kg × {reps}
           </span>
-          <span aria-label="완료됨">완료</span>
+          <span aria-label="완료됨" className="completed-pill">
+            완료
+          </span>
         </>
       )}
     </SetRowShell>

@@ -15,7 +15,8 @@ export default defineConfig({
       manifest: {
         name: "운동 추적기",
         short_name: "운동추적기",
-        theme_color: "#111111",
+        theme_color: "#0f1115",
+        background_color: "#0f1115",
         icons: [
           {
             // 스크립트 생성(단색 배경+원, 신규 devDep 없이 Node zlib로 직접 PNG 인코딩) — Stage1-C3 T5.

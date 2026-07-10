@@ -61,15 +61,19 @@ export function HistoryScreen() {
   }, [foldInput, selectedExerciseId]);
 
   if (error) {
-    return <div role="alert">{error}</div>;
+    return (
+      <div role="alert" className="alert">
+        {error}
+      </div>
+    );
   }
 
   if (sessions === null) {
-    return <div>로딩 중...</div>;
+    return <div className="loading-state">로딩 중...</div>;
   }
 
   if (sessions.length === 0) {
-    return <div>아직 기록된 세션이 없습니다</div>;
+    return <div className="loading-state">아직 기록된 세션이 없습니다</div>;
   }
 
   const plainSeries = e1rmSeriesForExercise.find((s) => !s.substituted);
@@ -77,13 +81,14 @@ export function HistoryScreen() {
 
   return (
     <div>
-      <h2>히스토리</h2>
+      <h2 className="day-header">히스토리</h2>
 
-      <section>
-        <h3>TM 이력 / e1RM 추이</h3>
+      <section className="slot-section">
+        <h3 className="slot-eyebrow">TM 이력 / e1RM 추이</h3>
         <select
           aria-label="운동 선택"
           data-testid="history-exercise-select"
+          className="form-input"
           value={selectedExerciseId}
           onChange={(e) => setSelectedExerciseId(e.target.value)}
         >
@@ -137,12 +142,13 @@ export function HistoryScreen() {
                 data-testid={`session-row-${session.id}`}
                 role="button"
                 tabIndex={0}
+                className="session-row"
                 onClick={() => setExpandedId(isExpanded ? null : session.id)}
               >
                 {session.at} — {session.programId} — {session.status === "completed" ? "완료" : "스킵"}
               </div>
               {isExpanded && (
-                <ul data-testid={`session-sets-${session.id}`}>
+                <ul data-testid={`session-sets-${session.id}`} className="session-sets">
                   {sessionSets.map((s) => (
                     <li key={s.id}>
                       {s.exerciseId} {s.actualWeight}kg × {s.actualReps}

@@ -44,14 +44,16 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
   } = useTodaySession(onSessionComplete);
 
   if (restDay === "rest") {
-    return <div>오늘은 휴식일입니다</div>;
+    return <div className="loading-state">오늘은 휴식일입니다</div>;
   }
   if (restDay === "notStarted") {
-    return <div>프로그램 시작 전입니다 (시작일: {instanceState?.anchor.startDate})</div>;
+    return (
+      <div className="loading-state">프로그램 시작 전입니다 (시작일: {instanceState?.anchor.startDate})</div>
+    );
   }
 
   if (status !== "ready" || !todayPlan || !sessionId) {
-    return <div>로딩 중...</div>;
+    return <div className="loading-state">로딩 중...</div>;
   }
 
   return (
@@ -59,12 +61,16 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
       {pendingProposals.map((p) => (
         <ProposalCard key={`${p.type}-${p.sourceSetRecordId}`} proposal={p} />
       ))}
-      <h2>{todayPlan.dayName}</h2>
-      {wakeLockNotice && <div role="status">{wakeLockNotice}</div>}
-      {error && <div role="alert">{error}</div>}
+      <h2 className="day-header">{todayPlan.dayName}</h2>
+      {wakeLockNotice && (
+        <div role="status" className="status-banner">
+          {wakeLockNotice}
+        </div>
+      )}
+      {error && <div role="alert" className="alert">{error}</div>}
       {effectiveSlots.map(({ original, slot, swapped }) => (
-        <section key={original.slotId}>
-          <h3>{slot.label}</h3>
+        <section key={original.slotId} className="slot-section">
+          <h3 className="slot-eyebrow">{slot.label}</h3>
           <ExerciseSwap
             slot={slot}
             skipped={isSkipped(slot.slotId)}
@@ -79,14 +85,14 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
           ) : (
             <>
               {slot.warmups.map((w, i) => (
-                <div key={`warmup-${i}`} data-testid={`warmup-${slot.slotId}-${i}`} style={{ color: "#888" }}>
+                <div key={`warmup-${i}`} data-testid={`warmup-${slot.slotId}-${i}`} className="warmup-row">
                   워밍업 {w.weight}kg × {w.reps}
                 </div>
               ))}
               {slot.sets.map((s, i) => {
                 const id = setIdFor(sessionId, slot.slotId, "work", i);
                 return (
-                  <div key={id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div key={id} className="set-row-with-plate">
                     <SetRow
                       id={id}
                       planned={s}
@@ -105,7 +111,7 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
         </section>
       ))}
       {allWorkSetsComplete && (
-        <button type="button" onClick={handleSessionComplete} disabled={completing}>
+        <button type="button" className="btn-complete-session" onClick={handleSessionComplete} disabled={completing}>
           세션 완료
         </button>
       )}

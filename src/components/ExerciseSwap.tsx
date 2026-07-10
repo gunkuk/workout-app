@@ -29,26 +29,28 @@ export function ExerciseSwap({
   const showPainDayOption = slot.exerciseId === "deadlift" && !swapped;
 
   return (
-    <div data-testid={`exercise-swap-${slot.slotId}`} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+    <div data-testid={`exercise-swap-${slot.slotId}`} className="exercise-swap">
       {skipped ? (
         <>
-          <span aria-label="스킵됨">스킵됨</span>
-          <button type="button" onClick={onUnskip}>
+          <span aria-label="스킵됨" className="skipped-pill">
+            스킵됨
+          </span>
+          <button type="button" className="btn btn-ghost" onClick={onUnskip}>
             스킵 해제
           </button>
         </>
       ) : (
-        <button type="button" onClick={onSkip}>
+        <button type="button" className="btn btn-ghost" onClick={onSkip}>
           스킵
         </button>
       )}
       {swapped && (
-        <button type="button" onClick={onRestoreOriginal}>
+        <button type="button" className="btn btn-ghost" onClick={onRestoreOriginal}>
           원래대로
         </button>
       )}
       {showPainDayOption && (
-        <button type="button" onClick={onPainDay}>
+        <button type="button" className="btn btn-ghost" onClick={onPainDay}>
           통증일(경량)
         </button>
       )}

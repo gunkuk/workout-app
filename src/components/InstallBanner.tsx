@@ -17,13 +17,14 @@ export function InstallBanner() {
   if (isStandalone() || dismissed) return null;
 
   return (
-    <div role="status" data-testid="install-banner">
+    <div role="status" data-testid="install-banner" className="install-banner">
       {isIOS()
         ? "설치: 공유 버튼 → 홈 화면에 추가"
         : "설치: 브라우저 메뉴에서 '홈 화면에 추가'를 선택하세요"}
       <button
         type="button"
         aria-label="배너 닫기"
+        className="install-banner-close btn-ghost"
         onClick={() => {
           sessionStorage.setItem(SUPPRESS_KEY, "1");
           setDismissed(true);

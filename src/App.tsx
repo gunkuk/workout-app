@@ -40,7 +40,7 @@ export default function App() {
   }, []);
 
   if (status === "loading") {
-    return <div>로딩 중...</div>;
+    return <div className="loading-state">로딩 중...</div>;
   }
 
   // 온보딩 전(라이브러리·인스턴스 없음) — 현재 해시가 무엇이든 온보딩으로 강제.
@@ -48,7 +48,9 @@ export default function App() {
     return (
       <>
         <InstallBanner />
-        <OnboardingScreen onComplete={() => navigate("/today")} />
+        <div className="app-content">
+          <OnboardingScreen onComplete={() => navigate("/today")} />
+        </div>
       </>
     );
   }
@@ -62,18 +64,20 @@ export default function App() {
   return (
     <div>
       <InstallBanner />
-      {route === "settings" ? (
-        <SettingsScreen />
-      ) : activeRoute === "history" ? (
-        <HistoryScreen />
-      ) : activeRoute === "analytics" ? (
-        <AnalyticsScreen />
-      ) : (
-        // 세션 완료 → 히스토리로 이동(선택 근거는 리포트 .superpowers/sdd/c1-task-7-report.md 참조:
-        // 방금 끝낸 세션을 바로 확인하는 편이 데모상 더 만족스럽고, 자동전진 자체는 히스토리에서
-        // 다시 오늘 탭으로 돌아왔을 때 todayPlan이 이미 다음 날로 갱신돼 있음으로 증명된다).
-        <TodayScreen onSessionComplete={() => navigate("/history")} />
-      )}
+      <div className="app-content">
+        {route === "settings" ? (
+          <SettingsScreen />
+        ) : activeRoute === "history" ? (
+          <HistoryScreen />
+        ) : activeRoute === "analytics" ? (
+          <AnalyticsScreen />
+        ) : (
+          // 세션 완료 → 히스토리로 이동(선택 근거는 리포트 .superpowers/sdd/c1-task-7-report.md 참조:
+          // 방금 끝낸 세션을 바로 확인하는 편이 데모상 더 만족스럽고, 자동전진 자체는 히스토리에서
+          // 다시 오늘 탭으로 돌아왔을 때 todayPlan이 이미 다음 날로 갱신돼 있음으로 증명된다).
+          <TodayScreen onSessionComplete={() => navigate("/history")} />
+        )}
+      </div>
       <NavShell active={activeRoute} />
     </div>
   );

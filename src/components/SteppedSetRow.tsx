@@ -51,33 +51,52 @@ export function SteppedSetRow({ id, planned, recorded, stepWeight, onComplete, o
   }
 
   return (
-    <SetRowShell id={id} onClick={handleRowClick}>
-      <span>
+    <SetRowShell id={id} onClick={handleRowClick} completed={!!recorded && !editing}>
+      <span className="set-row-value">
         {weight}kg × {reps}
         {amrapLabel}
       </span>
       {showEditable && (
-        <span onClick={stop} style={{ display: "flex", gap: 4 }}>
-          <button type="button" aria-label="무게 감소" onClick={() => setWeight((w) => w - stepWeight)}>
+        <span onClick={stop} className="set-row-controls">
+          <button
+            type="button"
+            aria-label="무게 감소"
+            className="stepper-btn"
+            onClick={() => setWeight((w) => w - stepWeight)}
+          >
             −
           </button>
-          <button type="button" aria-label="무게 증가" onClick={() => setWeight((w) => w + stepWeight)}>
+          <button
+            type="button"
+            aria-label="무게 증가"
+            className="stepper-btn"
+            onClick={() => setWeight((w) => w + stepWeight)}
+          >
             +
           </button>
-          <button type="button" aria-label="렙 감소" onClick={() => setReps((r) => Math.max(0, r - 1))}>
+          <button
+            type="button"
+            aria-label="렙 감소"
+            className="stepper-btn"
+            onClick={() => setReps((r) => Math.max(0, r - 1))}
+          >
             −렙
           </button>
-          <button type="button" aria-label="렙 증가" onClick={() => setReps((r) => r + 1)}>
+          <button type="button" aria-label="렙 증가" className="stepper-btn" onClick={() => setReps((r) => r + 1)}>
             +렙
           </button>
         </span>
       )}
       {editing && (
-        <button type="button" onClick={saveCorrection}>
+        <button type="button" className="btn btn-secondary" onClick={saveCorrection}>
           저장
         </button>
       )}
-      {recorded && !editing && <span aria-label="완료됨">완료</span>}
+      {recorded && !editing && (
+        <span aria-label="완료됨" className="completed-pill">
+          완료
+        </span>
+      )}
     </SetRowShell>
   );
 }
