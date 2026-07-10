@@ -4,6 +4,7 @@ import { appendSet, appendCorrection, appendSession, loadFoldInput } from "../st
 import { applyCorrections } from "../domain/corrections";
 import { stepOf, DEFAULT_PLATES } from "../domain/plates";
 import { SetRow } from "../components/SetRow";
+import { ProposalCard } from "../components/ProposalCard";
 import type { SetRecord, SessionCompleted, CorrectionRecord, CyclePos } from "../domain/types.ts";
 import type { PlannedSlot, PlannedSet } from "../domain/programEngine";
 
@@ -40,6 +41,7 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
   const todayPos = useProgramStore((s) => s.todayPos);
   const activeProgram = useProgramStore((s) => s.activeProgram);
   const refreshAfterWrite = useProgramStore((s) => s.refreshAfterWrite);
+  const pendingProposals = useProgramStore((s) => s.pendingProposals);
 
   const [recorded, setRecorded] = useState<Record<string, SetRecord>>({});
   const [error, setError] = useState<string | null>(null);
@@ -181,6 +183,9 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
 
   return (
     <div>
+      {pendingProposals.map((p) => (
+        <ProposalCard key={`${p.type}-${p.sourceSetRecordId}`} proposal={p} />
+      ))}
       <h2>{todayPlan.dayName}</h2>
       {error && <div role="alert">{error}</div>}
       {todayPlan.slots.map((slot) => (
