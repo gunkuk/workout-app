@@ -361,8 +361,10 @@ button {
 }
 
 .set-check-static {
-  border-color: var(--border);
-  opacity: 0.5;
+  /* 워밍업 행은 체크 대상이 아님(자동 기록) — 유령 체크 원을 그리지 않고 열 정렬용 공간만 유지 */
+  border: none;
+  background: transparent;
+  opacity: 0;
 }
 
 .free-input {
