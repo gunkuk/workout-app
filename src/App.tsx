@@ -6,6 +6,7 @@ import { OnboardingScreen } from "./screens/OnboardingScreen";
 import { AnalyticsScreen } from "./screens/AnalyticsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { NavShell, type NavRoute } from "./components/NavShell";
+import { InstallBanner } from "./components/InstallBanner";
 
 type RouteName = "today" | "history" | "analytics" | "settings" | "onboarding";
 
@@ -44,7 +45,12 @@ export default function App() {
 
   // 온보딩 전(라이브러리·인스턴스 없음) — 현재 해시가 무엇이든 온보딩으로 강제.
   if (status === "empty") {
-    return <OnboardingScreen onComplete={() => navigate("/today")} />;
+    return (
+      <>
+        <InstallBanner />
+        <OnboardingScreen onComplete={() => navigate("/today")} />
+      </>
+    );
   }
 
   // status === "ready": #/today·#/history·#/analytics·#/settings만 실제 화면, 그 외 해시는 오늘 화면으로 취급.
@@ -55,6 +61,7 @@ export default function App() {
 
   return (
     <div>
+      <InstallBanner />
       {route === "settings" ? (
         <SettingsScreen />
       ) : activeRoute === "history" ? (

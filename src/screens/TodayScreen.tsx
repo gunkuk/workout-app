@@ -40,6 +40,7 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
     handleUnskip,
     handlePainDay,
     handleRestoreOriginal,
+    wakeLockNotice,
   } = useTodaySession(onSessionComplete);
 
   if (restDay === "rest") {
@@ -59,6 +60,7 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
         <ProposalCard key={`${p.type}-${p.sourceSetRecordId}`} proposal={p} />
       ))}
       <h2>{todayPlan.dayName}</h2>
+      {wakeLockNotice && <div role="status">{wakeLockNotice}</div>}
       {error && <div role="alert">{error}</div>}
       {effectiveSlots.map(({ original, slot, swapped }) => (
         <section key={original.slotId}>

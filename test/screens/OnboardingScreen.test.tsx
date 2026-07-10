@@ -107,14 +107,20 @@ describe("OnboardingScreen", () => {
     await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
   });
 
-  it("④ standalone 감지에 따른 설치 배너 표시/숨김 분기", () => {
-    mockMatchMedia(false);
-    const notStandalone = render(<OnboardingScreen />);
-    expect(notStandalone.getByTestId("install-banner")).toBeInTheDocument();
-    notStandalone.unmount();
+  it("④ 제출 성공 시 navigator.storage.persist() 호출(mock, 결과 무시)", async () => {
+    const persist = vi.fn().mockResolvedValue(true);
+    Object.defineProperty(navigator, "storage", {
+      value: { persist },
+      configurable: true,
+    });
 
-    mockMatchMedia(true);
-    const standalone = render(<OnboardingScreen />);
-    expect(standalone.queryByTestId("install-banner")).not.toBeInTheDocument();
+    render(<OnboardingScreen />);
+    fillAll(VALID_VALUES);
+    fireEvent.click(screen.getByRole("button", { name: "시작하기" }));
+
+    await waitFor(() => expect(persist).toHaveBeenCalledTimes(1));
+
+    // @ts-expect-error 테스트 전용 스텁 정리
+    delete navigator.storage;
   });
 });

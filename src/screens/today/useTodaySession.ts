@@ -4,6 +4,7 @@ import { loadEventLog } from "../../store/queries";
 import { nowISO } from "../../lib/time";
 import { applyCorrections } from "../../domain/corrections";
 import { stepOf, DEFAULT_PLATES } from "../../domain/plates";
+import { acquireWakeLock, type WakeLockHandle } from "../../lib/wakeLock";
 import type { PlannedSlot, PlannedSet } from "../../domain/programEngine";
 import type { SetRecord, SessionCompleted, CorrectionRecord } from "../../domain/types.ts";
 import { sessionIdFor, setIdFor } from "./sessionId";
@@ -35,6 +36,8 @@ export type UseTodaySessionResult = {
   handleUnskip: (slotId: string) => void;
   handlePainDay: (originalSlot: PlannedSlot) => void;
   handleRestoreOriginal: () => void;
+  /** iOS<18.4 등 Wake Lock 미지원 안내(1회) — 지원 환경/알 수 없는 UA면 null. */
+  wakeLockNotice: string | null;
 };
 
 /**
@@ -62,6 +65,28 @@ export function useTodaySession(onSessionComplete?: () => void): UseTodaySession
    *  새로고침 시 리셋 — 계획 Task 6 계약: "세트 완료 콜백에서 showTimer 로컬 상태 true"). 한 번 true가 되면
    *  그 슬롯 하단에 RestTimer 1개가 계속 표시된다(세트마다 새로 마운트하지 않음). */
   const [timerVisibleSlots, setTimerVisibleSlots] = useState<Record<string, boolean>>({});
+  const [wakeLockNotice, setWakeLockNotice] = useState<string | null>(null);
+
+  // Wake Lock — 세션 화면 마운트 시 획득, 언마운트 시 해제(스펙 §2-5). iOS<18.4는 API 자체가 없어
+  // acquireWakeLock이 조용히 no-op하므로, 그 경우에만 1회 안내 문구를 노출한다.
+  useEffect(() => {
+    let handle: WakeLockHandle | null = null;
+    let cancelled = false;
+    acquireWakeLock().then((h) => {
+      if (cancelled) {
+        h.release();
+        return;
+      }
+      handle = h;
+      if (h.iosTooOld) {
+        setWakeLockNotice("iOS 18.4 미만은 화면 유지가 지원되지 않습니다");
+      }
+    });
+    return () => {
+      cancelled = true;
+      handle?.release();
+    };
+  }, []);
 
   const sessionId =
     activeProgram && todayPos ? sessionIdFor(activeProgram.id, activeProgram.version, todayPos) : null;
@@ -295,5 +320,6 @@ export function useTodaySession(onSessionComplete?: () => void): UseTodaySession
     handleUnskip,
     handlePainDay,
     handleRestoreOriginal,
+    wakeLockNotice,
   };
 }

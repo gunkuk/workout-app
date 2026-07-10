@@ -10,6 +10,7 @@ import type { DecisionEvent, SetRecord, CyclePos } from "../../src/domain/types.
 import { resetDb } from "../helpers/db";
 import { loadSeedProgram, seedOnboarded as seedOnboardedHelper } from "../helpers/seed";
 import { completeAllRows, waitForWarmupSettled } from "../helpers/todayScreenInteractions";
+import { mockMatchMedia } from "../helpers/dom";
 
 // Task 4 — SetRow + TodayScreen: 체크오프·즉시커밋·정정·needsInit.
 // 실제 nSuns 시드 + eventStore + programStore(zustand, 실제 — mock 아님)로 온보딩 완료 상태를
@@ -78,6 +79,8 @@ afterEach(() => {
 beforeEach(async () => {
   await resetDb();
   useProgramStore.setState(useProgramStore.getInitialState(), true);
+  // InstallBanner(App 레벨, Stage1-C3 T5)가 window.matchMedia를 참조 — 이 파일의 ⑫가 App을 렌더하므로 필요.
+  mockMatchMedia(false);
 });
 
 describe("TodayScreen", () => {

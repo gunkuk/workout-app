@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, fireEvent, waitFor, cleanup, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup, act, within } from "@testing-library/react";
 import { useProgramStore } from "../src/store/programStore";
 import App from "../src/App";
 import type { DecisionEvent } from "../src/domain/types.ts";
@@ -45,6 +45,7 @@ beforeEach(async () => {
   useProgramStore.setState(useProgramStore.getInitialState(), true);
   mockMatchMedia(false);
   window.location.hash = "";
+  sessionStorage.clear();
 });
 
 describe("App", () => {
@@ -69,6 +70,31 @@ describe("App", () => {
     // 세션 완료 기록이 아직 없으므로 HistoryScreen은 빈 상태 문구를 렌더한다(h2 "히스토리"는
     // 세션이 1개 이상일 때만 등장 — src/screens/HistoryScreen.tsx 참조).
     expect(await screen.findByText("아직 기록된 세션이 없습니다")).toBeInTheDocument();
+  });
+
+  it("④ 설치 배너 — standalone 감지에 따른 표시/숨김 분기(App 레벨 승격, Stage1-C3 T5)", async () => {
+    mockMatchMedia(false);
+    const notStandalone = render(<App />);
+    expect(await notStandalone.findByTestId("install-banner")).toBeInTheDocument();
+    notStandalone.unmount();
+
+    mockMatchMedia(true);
+    const standalone = render(<App />);
+    await waitFor(() => expect(standalone.queryByTestId("install-banner")).not.toBeInTheDocument());
+  });
+
+  it("⑤ 설치 배너 닫기 → 세션(sessionStorage) 내 재표시 안 됨", async () => {
+    mockMatchMedia(false);
+    render(<App />);
+
+    const banner = await screen.findByTestId("install-banner");
+    fireEvent.click(within(banner).getByRole("button", { name: "배너 닫기" }));
+
+    expect(screen.queryByTestId("install-banner")).not.toBeInTheDocument();
+
+    cleanup();
+    render(<App />);
+    expect(screen.queryByTestId("install-banner")).not.toBeInTheDocument();
   });
 
   it("③ 탭 클릭 → hash 변경", async () => {

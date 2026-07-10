@@ -1,7 +1,6 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useProgramStore } from "../store/programStore";
 import { nowISO } from "../lib/time";
-import { isIOS } from "../lib/platform";
 import type { DecisionEvent, DecisionTarget, ProgramDefinition } from "../domain/types.ts";
 // JSON import 방식: tsconfig에 resolveJsonModule이 없어(이 태스크는 tsconfig 수정 범위 밖) 네이티브
 // `import seed from "...json"`은 typecheck 실패. Vite의 `?raw` 쿼리(문자열 import, vite/client.d.ts에
@@ -33,18 +32,11 @@ const T2_EXERCISES: ExerciseInput[] = [
 
 const ALL_EXERCISES = [...T1_EXERCISES, ...T2_EXERCISES];
 
-function isStandalone(): boolean {
-  return window.matchMedia("(display-mode: standalone)").matches;
-}
-
 export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const seedProgram = useProgramStore((s) => s.seedProgram);
-
-  // 마운트 시 1회 판정 — display-mode는 세션 중 안 바뀐다고 가정(변경 시 새로고침으로 재판정, MVP 범위).
-  const showBanner = useMemo(() => !isStandalone(), []);
 
   function handleChange(id: string, value: string) {
     setValues((prev) => ({ ...prev, [id]: value }));
@@ -92,6 +84,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         },
         decisions,
       );
+      // 저장 공간 영속화 시도 — 브라우저가 보장하지 않으므로 결과는 무시(스펙 §2-8, fire-and-forget).
+      navigator.storage?.persist?.().catch(() => {});
       onComplete?.();
     } catch {
       setError("저장 실패 — 다시 시도해주세요.");
@@ -103,13 +97,6 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
 
   return (
     <div>
-      {showBanner && (
-        <div role="status" data-testid="install-banner">
-          {isIOS()
-            ? "설치: 공유 버튼 → 홈 화면에 추가"
-            : "설치: 브라우저 메뉴에서 '홈 화면에 추가'를 선택하세요"}
-        </div>
-      )}
       <h2>온보딩 — 트레이닝 맥스(TM) 설정</h2>
       {error && <div role="alert">{error}</div>}
       <form onSubmit={handleSubmit}>
