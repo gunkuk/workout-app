@@ -1,5 +1,14 @@
 import { create } from "zustand";
-import { loadFoldInput, getInstanceState, listLibrary } from "../storage/eventStore";
+import {
+  loadFoldInput,
+  getInstanceState,
+  listLibrary,
+  appendSet,
+  appendCorrection,
+  appendSession,
+  appendDecision,
+  seedOnboarding,
+} from "../storage/eventStore";
 import { foldState } from "../domain/fold";
 import { rollingCyclePos } from "../domain/cyclePos";
 import { buildWorkoutPlan, type WorkoutPlan } from "../domain/programEngine";
@@ -11,6 +20,10 @@ import type {
   AccessoryState,
   Proposal,
   CyclePos,
+  SetRecord,
+  CorrectionRecord,
+  SessionCompleted,
+  DecisionEvent,
 } from "../domain/types.ts";
 
 export type ProgramStoreState = {
@@ -24,6 +37,21 @@ export type ProgramStoreState = {
   todayPlan: WorkoutPlan | null;
   load(): Promise<void>;
   refreshAfterWrite(): Promise<void>;
+  /** 세트 기록 — 낙관적 UI 시맨틱 보존을 위해 refresh(재fold) 하지 않는다(Stage1-R T3). */
+  recordSet(rec: SetRecord): Promise<void>;
+  /** 정정 기록 — recordSet과 동일하게 refresh 없음(Stage1-R T3). */
+  recordCorrection(rec: CorrectionRecord): Promise<void>;
+  /** 세션 완료 기록 후 재fold. */
+  completeSession(rec: SessionCompleted): Promise<void>;
+  /** 온보딩 최초 시드(트랜잭션) 후 재fold. */
+  seedProgram(
+    program: ProgramDefinition,
+    libraryEntry: { programId: string; addedAt: string },
+    instanceState: ProgramInstanceState,
+    decisions: DecisionEvent[],
+  ): Promise<void>;
+  /** 제안 수락 결정 기록 후 재fold. */
+  acceptProposal(decision: DecisionEvent): Promise<void>;
 };
 
 const EMPTY_STATE = {
@@ -80,6 +108,29 @@ export const useProgramStore = create<ProgramStoreState>()((set, get) => ({
   },
 
   async refreshAfterWrite() {
+    await get().load();
+  },
+
+  async recordSet(rec) {
+    await appendSet(rec);
+  },
+
+  async recordCorrection(rec) {
+    await appendCorrection(rec);
+  },
+
+  async completeSession(rec) {
+    await appendSession(rec);
+    await get().load();
+  },
+
+  async seedProgram(program, libraryEntry, instanceState, decisions) {
+    await seedOnboarding(program, libraryEntry, instanceState, decisions);
+    await get().load();
+  },
+
+  async acceptProposal(decision) {
+    await appendDecision(decision);
     await get().load();
   },
 }));

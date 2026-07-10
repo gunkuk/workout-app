@@ -81,6 +81,32 @@ export async function setInstanceState(s: ProgramInstanceState): Promise<void> {
   await db.instanceState.put({ ...s, _id: "active" });
 }
 
+/**
+ * 온보딩 최초 시드 — programVersions upsert → library 등록 → instanceState 설정 → TM 시드 결정 N개를
+ * 하나의 Dexie 트랜잭션으로 묶는다(Stage1-R T3, 감사 robustness-high). 중간 실패 시 4테이블 전부
+ * 롤백되어 부분쓰기·중복 seed 오염을 막는다. 트랜잭션 내부는 기존 export 함수를 그대로 호출 —
+ * Dexie의 ambient transaction이 자동 전파되므로 각 함수는 무변경.
+ */
+export async function seedOnboarding(
+  program: ProgramDefinition,
+  libraryEntry: { programId: string; addedAt: string },
+  instanceState: ProgramInstanceState,
+  decisions: DecisionEvent[],
+): Promise<void> {
+  await db.transaction(
+    "rw",
+    [db.programVersions, db.library, db.instanceState, db.decisions],
+    async () => {
+      await upsertProgramVersion(program);
+      await addToLibrary(libraryEntry.programId, libraryEntry.addedAt);
+      await setInstanceState(instanceState);
+      for (const decision of decisions) {
+        await appendDecision(decision);
+      }
+    },
+  );
+}
+
 export async function loadFoldInput(): Promise<FoldInput> {
   const [sets, corrections, decisions, sessions, programVersions] = await Promise.all([
     db.setRecords.toArray(),
