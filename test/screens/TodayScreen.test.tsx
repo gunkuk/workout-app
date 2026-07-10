@@ -3,10 +3,11 @@ import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, within, cleanup } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { db } from "../../src/storage/db";
-import { appendSession, appendDecision, upsertProgramVersion, setInstanceState } from "../../src/storage/eventStore";
+import { appendSet, appendSession, appendDecision, upsertProgramVersion, setInstanceState } from "../../src/storage/eventStore";
 import { useProgramStore } from "../../src/store/programStore";
-import { TodayScreen } from "../../src/screens/TodayScreen";
-import type { ProgramDefinition, DecisionEvent } from "../../src/domain/types.ts";
+import { TodayScreen, sessionIdFor } from "../../src/screens/TodayScreen";
+import App from "../../src/App";
+import type { ProgramDefinition, DecisionEvent, SetRecord, CyclePos } from "../../src/domain/types.ts";
 
 // Task 4 — SetRow + TodayScreen: 체크오프·즉시커밋·정정·needsInit.
 // 실제 nSuns 시드 + eventStore + programStore(zustand, 실제 — mock 아님)로 온보딩 완료 상태를
@@ -306,5 +307,120 @@ describe("TodayScreen", () => {
     await waitFor(() => {
       expect(useProgramStore.getState().tm["deadlift"]).toBe(145);
     });
+  });
+
+  // Task 6(C2) — 최종 통합 배선: RestTimer 추가 배선 + ProposalCard/PlateBreakdown/ExerciseSwap이
+  // (T1/T3에서 이미 배선된 채로) 여전히 정상 마운트되는지, 스킵이 세션완료를 막지 않는지, App의
+  // 3탭 네비게이션과 통합해도 TodayScreen이 정상 동작하는지 확인한다.
+
+  it("⑩ 전체 렌더 시 4개 컴포넌트(제안카드·타이머·플레이트·스왑) 모두 마운트 확인", async () => {
+    await seedOnboarded();
+    // 스쿼트(day2) T1 topSet 1렙 미달 기록 + 세션완료 → tmDeload 제안 생성(ProposalCard.test.tsx의
+    // setupTmDeload와 동일 픽스처). 제안은 오늘 슬롯과 무관하게 항상 상단에 뜨므로(계획 계약),
+    // ①에서 만든 제안이 그대로 화면 최상단에 보여야 한다.
+    const proposalPos: CyclePos = { cycleIndex: 0, week: 0, dayOrdinal: 2 };
+    const proposalSessionId = sessionIdFor(seed.id, seed.version, proposalPos);
+    const topSet: SetRecord = {
+      id: `${proposalSessionId}-w1d2-squat-t1-work-2`,
+      sessionId: proposalSessionId,
+      slotId: "w1d2-squat-t1",
+      exerciseId: "squat",
+      setType: "work",
+      targetWeight: 80.75,
+      targetReps: 1,
+      actualWeight: 80.75,
+      actualReps: 1,
+      amrapRole: "topSet",
+      completedAt: at(2, 11),
+      schemaVersion: 1,
+    };
+    await appendSet(topSet);
+    await appendSession({
+      id: "seed-day2-session",
+      sessionId: proposalSessionId,
+      at: at(2, 14),
+      cyclePos: proposalPos,
+      status: "completed",
+      programId: seed.id,
+      programVersion: seed.version,
+      schemaVersion: 1,
+    });
+    await useProgramStore.getState().load();
+    expect(useProgramStore.getState().pendingProposals.some((p) => p.type === "tmDeload")).toBe(true);
+
+    const { container } = render(<TodayScreen />);
+    await waitForWarmupSettled();
+
+    // 제안카드 — pendingProposals가 있으므로 항상 렌더(무조건 마운트 대상이 아니라 이 픽스처로 검증).
+    expect(screen.getByTestId("proposal-card")).toBeInTheDocument();
+    // 플레이트 — 각 작업세트 옆에 무조건 렌더.
+    expect(container.querySelectorAll('[data-testid="plate-breakdown"]').length).toBeGreaterThan(0);
+    // 스왑 — 각 슬롯 헤더에 무조건 렌더.
+    expect(container.querySelectorAll('[data-testid^="exercise-swap-"]').length).toBeGreaterThan(0);
+    // 타이머 — 작업세트 완료 전엔 미노출(조건부 마운트가 계약, T2가 만든 컴포넌트 자체는 항상 마운트 대상이 아님).
+    expect(screen.queryByTestId("rest-timer")).not.toBeInTheDocument();
+
+    const row = rowsForLabel(container, "T1")[0]!;
+    fireEvent.click(row);
+    await waitFor(() => expect(row.querySelector('[aria-label="완료됨"]')).toBeTruthy());
+
+    // 그 슬롯의 작업세트 1개 완료 → 슬롯 하단에 타이머 노출(Task 6 트리거: handleComplete 콜백에서 로컬 state true).
+    expect(screen.getByTestId("rest-timer")).toBeInTheDocument();
+  });
+
+  it("⑪ 스킵한 슬롯이 있어도 나머지 세트 완료 시 세션 완료 가능(TodayScreen 통합)", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+    const { container } = render(<TodayScreen />);
+    await waitForWarmupSettled();
+
+    const t1Section = Array.from(container.querySelectorAll("h3"))
+      .find((h) => h.textContent === "T1")!
+      .closest("section")!;
+    fireEvent.click(within(t1Section).getByRole("button", { name: "스킵" }));
+    expect(within(t1Section).getByText("스킵됨")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "세션 완료" })).not.toBeInTheDocument();
+
+    // 스킵된 T1 슬롯을 제외한 나머지(T2 + accessory) 전부 완료.
+    const rows = Array.from(container.querySelectorAll('[data-testid^="setrow-"]')) as HTMLElement[];
+    for (const row of rows) {
+      if (t1Section.contains(row)) continue;
+      if (row.querySelector('[aria-label="완료됨"]')) continue;
+      const weightInput = row.querySelector('input[aria-label="무게 입력"]') as HTMLInputElement | null;
+      if (weightInput) {
+        const repsInput = row.querySelector('input[aria-label="렙 입력"]') as HTMLInputElement;
+        fireEvent.change(weightInput, { target: { value: "20" } });
+        fireEvent.change(repsInput, { target: { value: "10" } });
+        fireEvent.click(within(row).getByRole("button", { name: /완료|저장/ }));
+      } else {
+        fireEvent.click(row);
+      }
+      await waitFor(() => expect(row.querySelector('[aria-label="완료됨"]')).toBeTruthy());
+    }
+
+    expect(await screen.findByRole("button", { name: "세션 완료" })).toBeInTheDocument();
+  });
+
+  it("⑫ Task5가 만든 3탭 네비게이션과 통합해도 TodayScreen이 정상 동작(App.tsx/NavShell.tsx 변경 없이, 스모크)", async () => {
+    await seedOnboarded();
+    window.location.hash = "#/today";
+    render(<App />);
+
+    await waitFor(() => expect(useProgramStore.getState().status).toBe("ready"));
+    const dayName = useProgramStore.getState().todayPlan!.dayName;
+    expect(await screen.findByRole("heading", { level: 2, name: dayName })).toBeInTheDocument();
+    await screen.findByRole("navigation", { name: "주요 탐색" });
+
+    // 히스토리 탭으로 이동 후 오늘 탭으로 복귀 — TodayScreen이 재마운트되어도 정상 렌더(스모크).
+    fireEvent.click(screen.getByRole("button", { name: "히스토리" }));
+    await waitFor(() => expect(window.location.hash).toBe("#/history"));
+
+    fireEvent.click(screen.getByRole("button", { name: "오늘" }));
+    await waitFor(() => expect(window.location.hash).toBe("#/today"));
+    expect(await screen.findByRole("heading", { level: 2, name: dayName })).toBeInTheDocument();
+
+    // 분석 탭(Task5)도 정상 진입 — App.tsx/NavShell.tsx는 이 태스크가 건드리지 않았음을 재확인.
+    fireEvent.click(screen.getByRole("button", { name: "분석" }));
+    await waitFor(() => expect(window.location.hash).toBe("#/analytics"));
   });
 });

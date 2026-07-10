@@ -8,6 +8,7 @@ import { SetRow } from "../components/SetRow";
 import { ProposalCard } from "../components/ProposalCard";
 import { PlateBreakdown } from "../components/PlateBreakdown";
 import { ExerciseSwap } from "../components/ExerciseSwap";
+import { RestTimer } from "../components/RestTimer";
 import type { SetRecord, SessionCompleted, CorrectionRecord, CyclePos } from "../domain/types.ts";
 import type { PlannedSlot, PlannedSet } from "../domain/programEngine";
 
@@ -57,6 +58,10 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
   const [swappedSlots, setSwappedSlots] = useState<Record<string, string>>({});
   /** slotId -> 스킵 여부. sessionStorage(브라우저 세션 한정)로 마운트 시 복원. */
   const [skippedSlotIds, setSkippedSlotIds] = useState<Record<string, boolean>>({});
+  /** slotId -> 그 슬롯에서 작업세트가 1개 이상 완료되어 휴식타이머를 노출 중인지(순수 로컬 state,
+   *  새로고침 시 리셋 — 계획 Task 6 계약: "세트 완료 콜백에서 showTimer 로컬 상태 true"). 한 번 true가 되면
+   *  그 슬롯 하단에 RestTimer 1개가 계속 표시된다(세트마다 새로 마운트하지 않음). */
+  const [timerVisibleSlots, setTimerVisibleSlots] = useState<Record<string, boolean>>({});
 
   const sessionId =
     activeProgram && todayPos ? sessionIdFor(activeProgram.id, activeProgram.version, todayPos) : null;
@@ -142,6 +147,8 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
       };
       // 낙관적 UI 갱신 — DB write는 await하되 UI를 블로킹하지 않는다.
       setRecorded((prev) => ({ ...prev, [id]: rec }));
+      // 이 슬롯의 첫 작업세트 완료 트리거 — 휴식타이머를 그 슬롯 하단에 노출(이후 세트 완료는 no-op).
+      setTimerVisibleSlots((prev) => (prev[slot.slotId] ? prev : { ...prev, [slot.slotId]: true }));
       appendSet(rec).catch(() => {
         setError("세트 저장 실패 — 다시 시도해주세요.");
         setRecorded((prev) => {
@@ -304,6 +311,7 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
                   </div>
                 );
               })}
+              {timerVisibleSlots[slot.slotId] && <RestTimer />}
             </>
           )}
         </section>
