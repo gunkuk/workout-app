@@ -159,6 +159,46 @@ describe("ExerciseSwap", () => {
     });
   });
 
+  it("⑤b 경량 세트 기록 후 '원래대로' → revoked correction 기록(analytics 이중집계 차단) + 완료 카운트 제외", async () => {
+    await seedOnboarded();
+    await advancePast(3); // day4로 전진
+    await useProgramStore.getState().load();
+
+    const { container } = render(<TodayScreen />);
+    await waitForWarmupSettled();
+
+    fireEvent.click(screen.getByRole("button", { name: "통증일(경량)" }));
+    const swappedSection = await waitFor(() => {
+      const section = sectionFor(container, "T1(경량)");
+      expect(section).toBeTruthy();
+      return section!;
+    });
+    const rows = within(swappedSection).getAllByTestId(/^setrow-/);
+    const firstRow = rows[0]!;
+    fireEvent.click(firstRow); // 경량 세트 1개 완료
+    await waitFor(() => expect(firstRow.querySelector('[aria-label="완료됨"]')).toBeTruthy());
+    const setId = firstRow.getAttribute("data-testid")!.replace("setrow-", "");
+    await waitFor(async () => expect(await db.setRecords.get(setId)).toBeDefined());
+
+    fireEvent.click(within(swappedSection).getByRole("button", { name: "원래대로" }));
+
+    await waitFor(async () => {
+      const corrections = await db.corrections.toArray();
+      const revoke = corrections.find((c) => c.supersedes === setId);
+      expect(revoke).toBeDefined();
+      expect(revoke!.revoked).toBe(true);
+    });
+
+    // 원본 T1(데드리프트)로 복귀 렌더 — 경량 세트는 더 이상 표시되지 않고, 원본 슬롯 세트는 미완료 상태.
+    const originalSection = await waitFor(() => {
+      const section = sectionFor(container, "T1");
+      expect(section).toBeTruthy();
+      return section!;
+    });
+    const originalRows = within(originalSection).getAllByTestId(/^setrow-/);
+    expect(originalRows.every((r) => !r.querySelector('[aria-label="완료됨"]'))).toBe(true);
+  });
+
   it("⑥a 스킵 → 그 슬롯 제외하고 나머지 완료 시 '세션 완료' 버튼 활성화 가능", async () => {
     await seedOnboarded();
     await useProgramStore.getState().load();
