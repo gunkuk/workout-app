@@ -82,6 +82,25 @@ describe("cyclePos — nextCyclePos", () => {
       cycleIndex: 3, week: 0, dayOrdinal: 1,
     });
   });
+
+  // 이월 Minor #4 해소(B2-T4 리뷰): 다주 프로그램의 "같은 사이클 내 week+1 첫 day" 중간 분기 —
+  // nSuns 시드가 1주짜리라 이 경로가 기존 스위트에서 한 번도 실행되지 않았다.
+  it("다주 프로그램: 주 마지막 day → 같은 cycleIndex의 week+1 첫 day", () => {
+    const twoWeek: typeof seed = {
+      ...seed,
+      weeks: [
+        { days: [{ ordinal: 1, name: "w1d1", slots: [] }, { ordinal: 2, name: "w1d2", slots: [] }] },
+        { days: [{ ordinal: 1, name: "w2d1", slots: [] }] },
+      ],
+    };
+    expect(nextCyclePos(twoWeek, { cycleIndex: 0, week: 0, dayOrdinal: 2 })).toEqual({
+      cycleIndex: 0, week: 1, dayOrdinal: 1,
+    });
+    // 마지막 주 마지막 day는 여전히 cycle wrap
+    expect(nextCyclePos(twoWeek, { cycleIndex: 0, week: 1, dayOrdinal: 1 })).toEqual({
+      cycleIndex: 1, week: 0, dayOrdinal: 1,
+    });
+  });
 });
 
 describe("cyclePos — calendar", () => {

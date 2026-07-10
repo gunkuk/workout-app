@@ -46,7 +46,7 @@ describe("foldState — 악세사리 경로", () => {
       sessions: [session("a1", 2, 0)],
       sets: [accSet("s1", "a1", 40, 9, 2, 1), accSet("s2", "a1", 40, 9, 2, 5)],
     }));
-    expect(st.accessories["sl-lat"]).toMatchObject({ weight: 40, targetReps: 10 });
+    expect(st.accessories["sl-lat"]).toEqual({ weight: 40, targetReps: 10, missStreak: 0, grace: false });
   });
 
   it("마지막 세트 12렙 → +5·rep 리셋·유예", () => {
