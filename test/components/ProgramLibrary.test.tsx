@@ -145,6 +145,24 @@ describe("ProgramLibrary", () => {
     await screen.findByText(/두 번째 프로그램/);
   });
 
+  it("⑦(Stage1-C3 T3) calendar 모드 전환 — validateAnchor 불일치 startDate → 에러·전환 안 됨", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+
+    render(<ProgramLibrary />);
+
+    fireEvent.click(screen.getByRole("radio", { name: "calendar" }));
+    // 시드 첫 훈련 요일은 화(2026-07-07) — 수요일(2026-07-08)은 불일치.
+    fireEvent.change(screen.getByPlaceholderText("YYYY-MM-DD"), { target: { value: "2026-07-08" } });
+    fireEvent.click(screen.getByRole("button", { name: "모드 적용" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/시작일은 프로그램 첫 훈련 요일이어야 합니다/)).toBeInTheDocument();
+    expect(useProgramStore.getState().instanceState?.mode).toBe("rolling");
+  });
+
   it("⑥ 활성 프로그램 재전환(같은 프로그램)도 새 InstanceState 생성 — no-op 아님", async () => {
     await seedOnboarded();
     await useProgramStore.getState().load();

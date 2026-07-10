@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useProgramStore } from "../store/programStore";
 import { listPrograms } from "../store/queries";
 import { parseAndValidateProgram, fetchProgramFromUrl } from "../lib/programImport";
-import type { ProgramDefinition } from "../domain/types.ts";
+import { validateAnchor } from "../domain/cyclePos";
+import type { ProgramDefinition, ProgramInstanceState } from "../domain/types.ts";
 
 /**
  * Stage1-C3 T2 — 프로그램 라이브러리: 목록·전환·가져오기(파일/URL).
@@ -15,11 +16,18 @@ export function ProgramLibrary() {
   const switchProgram = useProgramStore((s) => s.switchProgram);
   const importProgram = useProgramStore((s) => s.importProgram);
 
+  const instanceState = useProgramStore((s) => s.instanceState);
+
   const [programs, setPrograms] = useState<ProgramDefinition[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [urlValue, setUrlValue] = useState("");
   const [busy, setBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 모드 설정(Stage1-C3 T3) — 현재 활성 프로그램의 rolling↔calendar 전환.
+  const [modeSelection, setModeSelection] = useState<"rolling" | "calendar">("rolling");
+  const [startDateInput, setStartDateInput] = useState("");
+  const [modeError, setModeError] = useState<string | null>(null);
 
   async function refresh() {
     setPrograms(await listPrograms());
@@ -77,6 +85,35 @@ export function ProgramLibrary() {
     });
   }
 
+  async function handleModeApply() {
+    if (!activeProgram) return;
+    setModeError(null);
+
+    if (modeSelection === "rolling") {
+      await switchProgram({
+        programId: activeProgram.id,
+        programVersion: activeProgram.version,
+        mode: "rolling",
+        anchor: {},
+        schemaVersion: 1,
+      });
+      return;
+    }
+
+    const candidate: ProgramInstanceState = {
+      programId: activeProgram.id,
+      programVersion: activeProgram.version,
+      mode: "calendar",
+      anchor: { startDate: startDateInput },
+      schemaVersion: 1,
+    };
+    if (!validateAnchor(activeProgram, candidate)) {
+      setModeError("시작일은 프로그램 첫 훈련 요일이어야 합니다");
+      return;
+    }
+    await switchProgram(candidate);
+  }
+
   return (
     <section>
       <h3>프로그램 라이브러리</h3>
@@ -117,6 +154,47 @@ export function ProgramLibrary() {
           />
         </label>
       </div>
+      {activeProgram && (
+        <section>
+          <h3>모드 설정</h3>
+          <p>현재 모드: {instanceState?.mode === "calendar" ? "calendar" : "rolling"}</p>
+          {modeError && <div role="alert">{modeError}</div>}
+          <label>
+            <input
+              type="radio"
+              name="program-mode"
+              value="rolling"
+              checked={modeSelection === "rolling"}
+              onChange={() => setModeSelection("rolling")}
+            />
+            rolling
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="program-mode"
+              value="calendar"
+              checked={modeSelection === "calendar"}
+              onChange={() => setModeSelection("calendar")}
+            />
+            calendar
+          </label>
+          {modeSelection === "calendar" && (
+            <label>
+              시작일
+              <input
+                type="text"
+                placeholder="YYYY-MM-DD"
+                value={startDateInput}
+                onChange={(e) => setStartDateInput(e.target.value)}
+              />
+            </label>
+          )}
+          <button type="button" onClick={handleModeApply}>
+            모드 적용
+          </button>
+        </section>
+      )}
       <div>
         <label>
           URL에서 가져오기

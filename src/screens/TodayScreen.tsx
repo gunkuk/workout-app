@@ -20,6 +20,8 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
   const status = useProgramStore((s) => s.status);
   const todayPlan = useProgramStore((s) => s.todayPlan);
   const pendingProposals = useProgramStore((s) => s.pendingProposals);
+  const restDay = useProgramStore((s) => s.restDay);
+  const instanceState = useProgramStore((s) => s.instanceState);
 
   const {
     recorded,
@@ -39,6 +41,13 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
     handlePainDay,
     handleRestoreOriginal,
   } = useTodaySession(onSessionComplete);
+
+  if (restDay === "rest") {
+    return <div>오늘은 휴식일입니다</div>;
+  }
+  if (restDay === "notStarted") {
+    return <div>프로그램 시작 전입니다 (시작일: {instanceState?.anchor.startDate})</div>;
+  }
 
   if (status !== "ready" || !todayPlan || !sessionId) {
     return <div>로딩 중...</div>;

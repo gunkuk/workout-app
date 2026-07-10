@@ -13,7 +13,7 @@ import {
   setInstanceState,
 } from "../storage/eventStore";
 import { foldState } from "../domain/fold";
-import { rollingCyclePos } from "../domain/cyclePos";
+import { rollingCyclePos, calendarCyclePos } from "../domain/cyclePos";
 import { buildWorkoutPlan, type WorkoutPlan } from "../domain/programEngine";
 import { DEFAULT_PLATES } from "../domain/plates";
 import { programKey } from "../domain/foldSupport";
@@ -38,6 +38,8 @@ export type ProgramStoreState = {
   pendingProposals: Proposal[];
   todayPos?: CyclePos;
   todayPlan: WorkoutPlan | null;
+  /** calendar 모드 휴식일/시작전 상태(Stage1-C3 T3) — rolling 모드는 항상 undefined. */
+  restDay?: "rest" | "notStarted";
   load(): Promise<void>;
   refreshAfterWrite(): Promise<void>;
   /** 세트 기록 — 낙관적 UI 시맨틱 보존을 위해 refresh(재fold) 하지 않는다(Stage1-R T3). */
@@ -98,7 +100,58 @@ export const useProgramStore = create<ProgramStoreState>()((set, get) => ({
     }
 
     const folded = foldState(input);
-    // MVP는 rolling 모드만 (calendar UI는 Plan C2).
+
+    if (instanceState.mode === "calendar") {
+      const todayISO = new Date().toISOString().slice(0, 10);
+      const cursor = calendarCyclePos(activeProgram, instanceState, todayISO);
+      if ("notStarted" in cursor) {
+        set({
+          status: "ready",
+          activeProgram,
+          instanceState,
+          tm: folded.tm,
+          accessories: folded.accessories,
+          pendingProposals: folded.pendingProposals,
+          todayPos: undefined,
+          todayPlan: null,
+          restDay: "notStarted",
+        });
+        return;
+      }
+      if (cursor.candidateDayOrdinal === null) {
+        set({
+          status: "ready",
+          activeProgram,
+          instanceState,
+          tm: folded.tm,
+          accessories: folded.accessories,
+          pendingProposals: folded.pendingProposals,
+          todayPos: undefined,
+          todayPlan: null,
+          restDay: "rest",
+        });
+        return;
+      }
+      const todayPos: CyclePos = {
+        cycleIndex: cursor.cycleIndex,
+        week: cursor.week,
+        dayOrdinal: cursor.candidateDayOrdinal,
+      };
+      const todayPlan = buildWorkoutPlan(activeProgram, todayPos, folded.tm, folded.accessories, DEFAULT_PLATES);
+      set({
+        status: "ready",
+        activeProgram,
+        instanceState,
+        tm: folded.tm,
+        accessories: folded.accessories,
+        pendingProposals: folded.pendingProposals,
+        todayPos,
+        todayPlan,
+        restDay: undefined,
+      });
+      return;
+    }
+
     const todayPos = rollingCyclePos(activeProgram, input.sessions);
     const todayPlan = buildWorkoutPlan(activeProgram, todayPos, folded.tm, folded.accessories, DEFAULT_PLATES);
 
@@ -111,6 +164,7 @@ export const useProgramStore = create<ProgramStoreState>()((set, get) => ({
       pendingProposals: folded.pendingProposals,
       todayPos,
       todayPlan,
+      restDay: undefined,
     });
   },
 
