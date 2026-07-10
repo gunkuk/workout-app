@@ -33,3 +33,19 @@ B2 Task 8: complete (commits 372e0df..b048f8f, review Approved — 명명위험 
   (3) B1 fold-accessory.test.ts:61 toMatchObject 부분검증(missStreak/grace 미확인)
   (4) B2 T4 cyclePos.nextCyclePos 중간분기(주+1 same-cycle) 1주 시드로 미검증 — 다주 프로그램 도입 시 테스트 추가
   (5) B2 T6 analytics — 외부세션-only 주(실세트 0)는 버킷 부재로 빈도 소실. Plan C 분석 화면 설계 전 검토 필요(주간 뷰가 그 주를 아예 안 보여줄 위험)
+
+B2 후속(Plan C1 SDD 신규 레저):
+C1 Task 1: complete (commits ad91041..7d06053, review Needs-fixes→해소 — 스크린샷 검증 누락 지적, 컨트롤러가 preview_eval/console/network로 3라우트 직접 검증 완료)
+C1 Task 2: complete (commits 7d06053..a0a35bf, review Approved — FoldInput/programKey 구조 일치 명명위험 직접 추적 검증)
+C1 Task 3: complete (commits a0a35bf..7da848b, review Approved — rollingCyclePos 시그니처 일치 확인)
+C1 Task 4: complete (commits 7da848b..9dd06f7, review Approved — 두 critical 계약(sessionId 조인·needsInit UX) 모두 코드추적+테스트 검증)
+C1 Task 5: complete (commits 9dd06f7..8ad96f2, review Approved — 8개 시드·악세사리 미시드·무라우팅 훅 확인. 이월 Minor: 온보딩 제출 중 실패 시 부분쓰기 롤백 없음)
+C1 Task 6: complete (commits 8ad96f2..ddca677, review Approved — order.ts 재사용·sessionId 조인·C2 범위침범 없음 확인)
+C1 Task 7: complete (commits ddca677..934818f, review Approved — empty강제라우팅·NavShell 조건부렌더·prop매칭 확인)
+C1 Task 8: complete (commits 934818f..b96d5dc 자동 + 컨트롤러 직접 수동 브라우저 검증, review Approved — mock없는 진짜 E2E·리마운트로 영속 증명·다음날 콘텐츠 검증 확인)
+=== Plan C1 (stage1-C1-app-shell) 완료 2026-07-10: 8/8 tasks, 170 tests, tsc 0, build 성공, 수동 골든패스 통과 ===
+이월 목록 (Plan C2):
+  캘린더 모드, TM 이력 차트, 주간 부위별 분석 대시보드(§2-4 하체 각주), 휴식 타이머, 플레이트 계산기 UI,
+  운동 스킵/대체+통증일 프리셋 UI, 세션 노트, 프로그램 편집·라이브러리·전환 UI, JSON export/import(Web Share),
+  GitHub Pages 배포(base path 재확정 필요 — 현재 './' 임시), 설치 iOS 수동 안내 상세, PWA 아이콘 실물 제작,
+  외부세션-only 주 빈도소실(B2 T6 이월), 온보딩 부분쓰기 롤백(C1 T5 이월)
