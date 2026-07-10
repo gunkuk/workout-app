@@ -3,13 +3,15 @@ import { useProgramStore } from "./store/programStore";
 import { TodayScreen } from "./screens/TodayScreen";
 import { HistoryScreen } from "./screens/HistoryScreen";
 import { OnboardingScreen } from "./screens/OnboardingScreen";
+import { AnalyticsScreen } from "./screens/AnalyticsScreen";
 import { NavShell, type NavRoute } from "./components/NavShell";
 
-type RouteName = "today" | "history" | "onboarding";
+type RouteName = "today" | "history" | "analytics" | "onboarding";
 
 function parseRoute(hash: string): RouteName {
   const path = hash.replace(/^#/, "");
   if (path === "/history") return "history";
+  if (path === "/analytics") return "analytics";
   if (path === "/onboarding") return "onboarding";
   return "today";
 }
@@ -43,13 +45,15 @@ export default function App() {
     return <OnboardingScreen onComplete={() => navigate("/today")} />;
   }
 
-  // status === "ready": #/today·#/history만 실제 화면, 그 외 해시는 오늘 화면으로 취급.
-  const activeRoute: NavRoute = route === "history" ? "history" : "today";
+  // status === "ready": #/today·#/history·#/analytics만 실제 화면, 그 외 해시는 오늘 화면으로 취급.
+  const activeRoute: NavRoute = route === "history" ? "history" : route === "analytics" ? "analytics" : "today";
 
   return (
     <div>
       {activeRoute === "history" ? (
         <HistoryScreen />
+      ) : activeRoute === "analytics" ? (
+        <AnalyticsScreen />
       ) : (
         // 세션 완료 → 히스토리로 이동(선택 근거는 리포트 .superpowers/sdd/c1-task-7-report.md 참조:
         // 방금 끝낸 세션을 바로 확인하는 편이 데모상 더 만족스럽고, 자동전진 자체는 히스토리에서

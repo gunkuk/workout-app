@@ -1,9 +1,9 @@
 /**
- * Task 7 — 하단 탭 네비게이션. status === "ready"일 때만 App이 렌더한다(온보딩 중엔 탭 없음).
+ * Task 7(C1)/Task 5(C2) — 하단 탭 네비게이션. status === "ready"일 때만 App이 렌더한다(온보딩 중엔 탭 없음).
  * 탭 클릭은 window.location.hash를 바꾸는 것뿐 — 실제 화면 전환은 App의 hashchange 리스너가 담당한다.
  */
 
-export type NavRoute = "today" | "history";
+export type NavRoute = "today" | "history" | "analytics";
 
 export type NavShellProps = {
   active: NavRoute;
@@ -12,6 +12,7 @@ export type NavShellProps = {
 const TABS: { route: NavRoute; label: string; hash: string }[] = [
   { route: "today", label: "오늘", hash: "/today" },
   { route: "history", label: "히스토리", hash: "/history" },
+  { route: "analytics", label: "분석", hash: "/analytics" },
 ];
 
 export function NavShell({ active }: NavShellProps) {
