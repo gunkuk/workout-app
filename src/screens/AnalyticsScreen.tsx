@@ -174,10 +174,24 @@ export function AnalyticsScreen() {
 
   const bucket = programBuckets[index]!;
   const groupEntries = Object.entries(bucket.groups) as [MuscleGroup, GroupStats][];
+  // UI v2(Boostcamp 클론, Stage1-UI2) — 상단 요약 타일(오렌지 큰 숫자, 스펙 "분석 화면"). 표에 이미 있는
+  // 부위별 수치를 합산해 보여줄 뿐 새 데이터 소스는 아니므로 domain 재계산·신규 testid 계약 없음.
+  const totalValidSets = groupEntries.reduce((sum, [, s]) => sum + s.validSets, 0);
+  const totalTonnage = groupEntries.reduce((sum, [, s]) => sum + s.tonnage, 0);
 
   return (
     <div>
       <h2 className="day-header">주간 분석</h2>
+      <div className="stat-tiles">
+        <div className="stat-tile">
+          <span className="stat-value">{totalValidSets}</span>
+          <span className="stat-label">주간 유효세트</span>
+        </div>
+        <div className="stat-tile">
+          <span className="stat-value">{totalTonnage}</span>
+          <span className="stat-label">주간 톤수</span>
+        </div>
+      </div>
       <div className="set-row-controls">
         <button
           type="button"

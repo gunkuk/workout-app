@@ -7,6 +7,18 @@ import { EXERCISES } from "../domain/exerciseLibrary";
 import { LineChart } from "../components/LineChart";
 import type { SessionCompleted, SetRecord, FoldInput } from "../domain/types.ts";
 
+const WEEKDAY_KR = ["일", "월", "화", "수", "목", "금", "토"];
+
+/**
+ * UI v2(Boostcamp 클론, Stage1-UI2) — 세션 행 표시용 한국어 짧은 날짜("7월 10일 (금)", 스펙 "히스토리").
+ * ISO 원문은 렌더링에서 버리지 않고 title 속성으로 보존한다(호출부). 파싱 실패 시 원문을 그대로 반환.
+ */
+function formatKoreanDate(at: string): string {
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return at;
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAY_KR[d.getDay()]})`;
+}
+
 /**
  * Task 6(C1) — 최소 히스토리 화면: 캘린더 없이 세션 리스트만.
  * 정렬: sortByAtId(order.ts, 나머지 화면들과 동일한 (at,id) 비교자)를 그대로 쓰고 reverse()해
@@ -143,9 +155,10 @@ export function HistoryScreen() {
                 role="button"
                 tabIndex={0}
                 className="session-row"
+                title={session.at}
                 onClick={() => setExpandedId(isExpanded ? null : session.id)}
               >
-                {session.at} — {session.programId} — {session.status === "completed" ? "완료" : "스킵"}
+                {formatKoreanDate(session.at)} — {session.programId} — {session.status === "completed" ? "완료" : "스킵"}
               </div>
               {isExpanded && (
                 <ul data-testid={`session-sets-${session.id}`} className="session-sets">

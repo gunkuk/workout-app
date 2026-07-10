@@ -1,12 +1,19 @@
-import { useEffect, useState, type MouseEvent, type SyntheticEvent } from "react";
+import { useEffect, useState, type MouseEvent, type ReactNode, type SyntheticEvent } from "react";
 import type { PlannedSet } from "../domain/programEngine";
 import type { SetRecord } from "../domain/types.ts";
+import type { PlateConfig } from "../domain/plates";
 import { SetRowShell } from "./SetRowShell";
+import { PlateBreakdown } from "./PlateBreakdown";
 
 export type FreeInputSetRowProps = {
   id: string;
   planned: PlannedSet;
   recorded?: SetRecord;
+  /** 목표 셀 서브라인(원판 구성) 표시용(Stage1-UI2) — planned.weight가 항상 null이라 실제로는
+   *  PlateBreakdown의 폴백 문구("직접 계산 필요")로만 귀결되지만, SteppedSetRow와 동일 계약 유지. */
+  cfg: PlateConfig;
+  /** SetRow가 계산한 배지 — 1열 그리드 셀(Stage1-UI2) */
+  badge: ReactNode;
   onComplete: (weight: number, reps: number) => void;
   onCorrect: (weight: number, reps: number) => void;
 };
@@ -15,8 +22,12 @@ export type FreeInputSetRowProps = {
  * 자유입력 모드(planned.weight === null — needsInit 악세사리): 무게·렙 텍스트 입력 +
  * 완료/저장 버튼으로만 제출(행 탭으로 즉시 제출되지 않음). SetRow에서 분리(Stage1-R T5) —
  * DOM·aria-label·클릭 시맨틱은 원본과 byte-for-byte 동일.
+ * UI v2(Stage1-UI2) — SetRowShell이 4열 그리드[배지|목표|조정|체크원]로 렌더하므로, children을
+ * 정확히 2개 요소(목표 셀, 조정 셀)로 순서대로 반환한다(그리드 트랙 매칭 계약). 입력모드에선 목표
+ * 셀=무게·렙 입력, 조정 셀=제출 버튼; 완료(읽기전용) 모드에선 목표 셀=값 텍스트+원판 서브라인,
+ * 조정 셀=빈 자리표시자(그리드 정렬 유지).
  */
-export function FreeInputSetRow({ id, planned, recorded, onComplete, onCorrect }: FreeInputSetRowProps) {
+export function FreeInputSetRow({ id, planned, recorded, cfg, badge, onComplete, onCorrect }: FreeInputSetRowProps) {
   const [editing, setEditing] = useState(false);
   const [weight, setWeight] = useState<number>(recorded?.actualWeight ?? planned.weight ?? 0);
   const [reps, setReps] = useState<number>(recorded?.actualReps ?? planned.reps);
@@ -55,37 +66,42 @@ export function FreeInputSetRow({ id, planned, recorded, onComplete, onCorrect }
   }
 
   return (
-    <SetRowShell id={id} onClick={handleRowClick} completed={!!recorded && !editing}>
+    <SetRowShell id={id} onClick={handleRowClick} completed={!!recorded && !editing} badge={badge}>
       {showEditable ? (
-        <span onClick={stop} className="set-row-controls">
-          <input
-            aria-label="무게 입력"
-            type="number"
-            placeholder="무게(kg)"
-            className="free-input"
-            value={weightText}
-            onChange={(e) => setWeightText(e.target.value)}
-          />
-          <input
-            aria-label="렙 입력"
-            type="number"
-            placeholder={String(planned.reps)}
-            className="free-input"
-            value={repsText}
-            onChange={(e) => setRepsText(e.target.value)}
-          />
-          <button type="button" className="btn btn-secondary" onClick={submitFree}>
-            {recorded ? "저장" : "완료"}
-          </button>
-        </span>
+        <>
+          <span onClick={stop} className="set-target set-target-inputs">
+            <input
+              aria-label="무게 입력"
+              type="number"
+              placeholder="kg"
+              className="free-input"
+              value={weightText}
+              onChange={(e) => setWeightText(e.target.value)}
+            />
+            <input
+              aria-label="렙 입력"
+              type="number"
+              placeholder={String(planned.reps)}
+              className="free-input"
+              value={repsText}
+              onChange={(e) => setRepsText(e.target.value)}
+            />
+          </span>
+          <span onClick={stop} className="set-row-adjust">
+            <button type="button" className="btn btn-secondary btn-compact" onClick={submitFree}>
+              {recorded ? "저장" : "완료"}
+            </button>
+          </span>
+        </>
       ) : (
         <>
-          <span className="set-row-value">
-            {weight}kg × {reps}
-          </span>
-          <span aria-label="완료됨" className="completed-pill">
-            완료
-          </span>
+          <div className="set-target">
+            <span className="set-row-value">
+              {weight}kg × {reps}
+            </span>
+            <PlateBreakdown weight={planned.weight} cfg={cfg} />
+          </div>
+          <span className="set-row-adjust" />
         </>
       )}
     </SetRowShell>
