@@ -56,6 +56,20 @@ export async function addToLibrary(programId: string, addedAt: string): Promise<
   await db.library.put({ programId, addedAt });
 }
 
+/**
+ * Task 7(C2, 백업) — library 테이블 원본 그대로(programId/addedAt, listLibrary()처럼 programVersions와
+ * 조인해 병합하지 않음). listLibrary()는 이 둘을 합쳐 최신 버전만 남기며 addedAt을 버려 무손실 왕복이
+ * 안 되므로, 백업 내보내기는 이 원본 함수를 쓴다.
+ */
+export async function getLibraryEntries(): Promise<{ programId: string; addedAt: string }[]> {
+  return db.library.toArray();
+}
+
+/** Task 7(C2, 백업) — programVersions 테이블 전 버전(fork 포함) 그대로, 조인 없음. */
+export async function getAllProgramVersions(): Promise<ProgramDefinition[]> {
+  return db.programVersions.toArray();
+}
+
 export async function getInstanceState(): Promise<ProgramInstanceState | undefined> {
   const row = await db.instanceState.get("active");
   if (!row) return undefined;

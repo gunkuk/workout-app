@@ -4,14 +4,16 @@ import { TodayScreen } from "./screens/TodayScreen";
 import { HistoryScreen } from "./screens/HistoryScreen";
 import { OnboardingScreen } from "./screens/OnboardingScreen";
 import { AnalyticsScreen } from "./screens/AnalyticsScreen";
+import { SettingsScreen } from "./screens/SettingsScreen";
 import { NavShell, type NavRoute } from "./components/NavShell";
 
-type RouteName = "today" | "history" | "analytics" | "onboarding";
+type RouteName = "today" | "history" | "analytics" | "settings" | "onboarding";
 
 function parseRoute(hash: string): RouteName {
   const path = hash.replace(/^#/, "");
   if (path === "/history") return "history";
   if (path === "/analytics") return "analytics";
+  if (path === "/settings") return "settings";
   if (path === "/onboarding") return "onboarding";
   return "today";
 }
@@ -45,12 +47,17 @@ export default function App() {
     return <OnboardingScreen onComplete={() => navigate("/today")} />;
   }
 
-  // status === "ready": #/today·#/history·#/analytics만 실제 화면, 그 외 해시는 오늘 화면으로 취급.
+  // status === "ready": #/today·#/history·#/analytics·#/settings만 실제 화면, 그 외 해시는 오늘 화면으로 취급.
+  // settings는 NavShell의 3탭(NavRoute) 어디에도 속하지 않는 별도 화면(T7 — 설정 진입점은 4번째
+  // 탭이 아니라 NavShell의 상단 아이콘, T5가 잠근 3탭 구조는 그대로 유지). activeRoute는 하단 탭
+  // 하이라이트 전용이라 settings일 때도 "today"로 취급하지만, 실제 렌더링은 route로 먼저 분기한다.
   const activeRoute: NavRoute = route === "history" ? "history" : route === "analytics" ? "analytics" : "today";
 
   return (
     <div>
-      {activeRoute === "history" ? (
+      {route === "settings" ? (
+        <SettingsScreen />
+      ) : activeRoute === "history" ? (
         <HistoryScreen />
       ) : activeRoute === "analytics" ? (
         <AnalyticsScreen />

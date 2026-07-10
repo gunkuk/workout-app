@@ -1,0 +1,152 @@
+import {
+  loadFoldInput,
+  getLibraryEntries,
+  getAllProgramVersions,
+  getInstanceState,
+  appendSet,
+  appendCorrection,
+  appendDecision,
+  appendSession,
+  upsertProgramVersion,
+  addToLibrary,
+  setInstanceState,
+} from "../storage/eventStore";
+import type {
+  SetRecord,
+  CorrectionRecord,
+  DecisionEvent,
+  SessionCompleted,
+  ProgramDefinition,
+  ProgramInstanceState,
+} from "../domain/types.ts";
+
+/**
+ * Task 7(C2) — JSON 백업 내보내기/가져오기(스펙 §2-8, §3.3).
+ * 스토리지 캡슐화 유지(db 직접 참조 없음) — eventStore.ts의 함수만 조합한다.
+ */
+
+const SCHEMA_VERSION = 1 as const;
+
+export type BackupSnapshot = {
+  schemaVersion: 1;
+  sets: SetRecord[];
+  corrections: CorrectionRecord[];
+  decisions: DecisionEvent[];
+  sessions: SessionCompleted[];
+  /** 프로그램 정의 전 버전(fork 포함) — getAllProgramVersions() 원본. */
+  programs: ProgramDefinition[];
+  /** library 테이블 원본(programId/addedAt) — listLibrary()의 조인 병합 결과가 아님(무손실 왕복). */
+  library: { programId: string; addedAt: string }[];
+  instanceState?: ProgramInstanceState;
+};
+
+/**
+ * 전체 백업 스냅샷 생성. loadFoldInput()에서 sets/corrections/decisions/sessions를 가져오고,
+ * "programs" 필드는 loadFoldInput().programs(Map)를 직접 순회해 변환하는 대신 getAllProgramVersions()를
+ * 그대로 쓴다 — 둘 다 근본적으로 같은 원본(db.programVersions.toArray(), 무필터)에서 나오므로
+ * 동일 쿼리를 두 번 다른 형태로 담을 필요가 없다(Map→array 변환 요구는 이미-배열인 소스 재사용으로 충족).
+ */
+export async function exportSnapshot(): Promise<BackupSnapshot> {
+  const [foldInput, library, programs, instanceState] = await Promise.all([
+    loadFoldInput(),
+    getLibraryEntries(),
+    getAllProgramVersions(),
+    getInstanceState(),
+  ]);
+  const snapshot: BackupSnapshot = {
+    schemaVersion: SCHEMA_VERSION,
+    sets: foldInput.sets,
+    corrections: foldInput.corrections,
+    decisions: foldInput.decisions,
+    sessions: foldInput.sessions,
+    programs,
+    library,
+  };
+  if (instanceState) snapshot.instanceState = instanceState;
+  return snapshot;
+}
+
+/**
+ * 백업 스냅샷 가져오기. schemaVersion !== 1이면 마이그레이션 없이 즉시 거부(DB 변경 없음 — 이 체크가
+ * 어떤 upsert보다 먼저 실행된다). 통과 시 각 레코드를 기존 upsert 함수로 재-append —
+ * Dexie put 업서트 의미론으로 id 합집합 병합(덮어쓰지 않음, T1/C1에서 확립된 계약 재사용).
+ */
+export async function importSnapshot(data: object): Promise<void> {
+  const snapshot = data as Partial<BackupSnapshot>;
+  if (snapshot.schemaVersion !== 1) {
+    throw new Error(
+      `지원하지 않는 백업 형식입니다(schemaVersion=${String(snapshot.schemaVersion)}). ` +
+        "이 앱은 schemaVersion 1만 지원하며 별도 마이그레이션 없이 가져오기를 거부합니다.",
+    );
+  }
+
+  const sets = snapshot.sets ?? [];
+  const corrections = snapshot.corrections ?? [];
+  const decisions = snapshot.decisions ?? [];
+  const sessions = snapshot.sessions ?? [];
+  const programs = snapshot.programs ?? [];
+  const library = snapshot.library ?? [];
+
+  await Promise.all([
+    ...sets.map((s) => appendSet(s)),
+    ...corrections.map((c) => appendCorrection(c)),
+    ...decisions.map((d) => appendDecision(d)),
+    ...sessions.map((s) => appendSession(s)),
+    ...programs.map((p) => upsertProgramVersion(p)),
+    ...library.map((l) => addToLibrary(l.programId, l.addedAt)),
+  ]);
+
+  if (snapshot.instanceState) {
+    await setInstanceState(snapshot.instanceState);
+  }
+}
+
+/** iOS 감지 — OnboardingScreen.tsx의 UA sniff 패턴 재사용(그 파일은 이 태스크 수정 범위 밖이라 함수를
+ *  직접 import하지 않고 동일한 판정 로직만 재사용한다). */
+export function isIOS(): boolean {
+  const ua = navigator.userAgent;
+  return ua.includes("iPhone") || ua.includes("iPad");
+}
+
+/**
+ * 스냅샷을 파일로 내보내기 — iOS: Web Share API(파일 첨부, navigator.canShare가 지원할 때만) 시도 →
+ * 미지원 시 클립보드 텍스트 복사. 그 외 플랫폼: <a download> blob URL 클릭.
+ * 순수 로직만 담당(호출부인 SettingsScreen이 에러 표시를 맡는다) — 실패 시 그대로 throw.
+ */
+export async function shareOrDownloadSnapshot(snapshot: BackupSnapshot): Promise<void> {
+  const json = JSON.stringify(snapshot, null, 2);
+  const fileName = "workout-backup.json";
+
+  if (isIOS()) {
+    const file = new File([json], fileName, { type: "application/json" });
+    const canShareFiles =
+      typeof navigator.share === "function" &&
+      typeof navigator.canShare === "function" &&
+      navigator.canShare({ files: [file] });
+    if (canShareFiles) {
+      await navigator.share({ files: [file], title: "운동 백업" });
+      return;
+    }
+    await navigator.clipboard.writeText(json);
+    return;
+  }
+
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+}
+
+/** JSON 문자열 파싱 — 실패 시 크래시 대신 명시적 에러를 throw(호출부가 catch해 인라인 안내로 표시). */
+export function parseSnapshotJSON(text: string): object {
+  try {
+    return JSON.parse(text) as object;
+  } catch {
+    throw new Error("올바른 JSON 파일이 아닙니다 — 백업 파일을 다시 확인해주세요.");
+  }
+}
