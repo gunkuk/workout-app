@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { db, type ExternalSessionRecord } from "./db";
 import { programKey } from "../domain/foldSupport";
 import type {
   SetRecord,
@@ -105,6 +105,16 @@ export async function seedOnboarding(
       }
     },
   );
+}
+
+/** 외부(크로스핏 등) 세션 기록(Stage1-C3 T4). */
+export async function appendExternalSession(rec: ExternalSessionRecord): Promise<void> {
+  await db.externalSessions.put(rec);
+}
+
+/** 외부 세션 전체 조회(Stage1-C3 T4) — 저장 원본 그대로(id/at 포함). */
+export async function listExternalSessions(): Promise<ExternalSessionRecord[]> {
+  return db.externalSessions.toArray();
 }
 
 export async function loadFoldInput(): Promise<FoldInput> {

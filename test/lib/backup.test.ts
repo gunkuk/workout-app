@@ -10,6 +10,8 @@ import {
   loadFoldInput,
   getLibraryEntries,
   getInstanceState,
+  appendExternalSession,
+  listExternalSessions,
 } from "../../src/storage/eventStore";
 import { programKey } from "../../src/domain/foldSupport";
 import {
@@ -61,6 +63,7 @@ const EMPTY_SNAPSHOT: BackupSnapshot = {
   sessions: [],
   programs: [],
   library: [],
+  externalSessions: [],
 };
 
 const ORIGINAL_UA = navigator.userAgent;
@@ -99,6 +102,13 @@ async function seedFullSnapshotData(): Promise<void> {
   });
   await upsertProgramVersion(program("p1", 1));
   await addToLibrary("p1", "2026-07-10T00:00:00Z");
+  await appendExternalSession({
+    id: "ext1",
+    at: "2026-07-10T09:15:00Z",
+    groups: ["back"],
+    programId: "p1",
+    cyclePos: { cycleIndex: 0, week: 0 },
+  });
   await setInstanceState({
     programId: "p1",
     programVersion: 1,
@@ -151,6 +161,27 @@ describe("backup", () => {
       anchor: {},
       schemaVersion: 1,
     });
+  });
+
+  it("⑦(Stage1-C3 T4) 백업 왕복에 externalSessions 포함", async () => {
+    await seedFullSnapshotData();
+    const snapshot = await exportSnapshot();
+    expect(snapshot.externalSessions).toEqual([
+      { id: "ext1", at: "2026-07-10T09:15:00Z", groups: ["back"], programId: "p1", cyclePos: { cycleIndex: 0, week: 0 } },
+    ]);
+
+    await resetDb();
+    expect(await listExternalSessions()).toEqual([]);
+
+    await importSnapshot(snapshot);
+    expect(await listExternalSessions()).toEqual(snapshot.externalSessions);
+  });
+
+  it("⑦-2(Stage1-C3 T4) externalSessions 필드 없는 옛 백업도 가져오기 성공(하위호환, `?? []`)", async () => {
+    const legacySnapshot = { ...EMPTY_SNAPSHOT } as Partial<BackupSnapshot>;
+    delete legacySnapshot.externalSessions;
+    await expect(importSnapshot(legacySnapshot)).resolves.not.toThrow();
+    expect(await listExternalSessions()).toEqual([]);
   });
 
   it("② schemaVersion 불일치 → 명시 에러 던짐, DB 변경 없음", async () => {

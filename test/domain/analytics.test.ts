@@ -176,6 +176,23 @@ describe("weeklyAnalysis", () => {
     expect(b.groups.back?.frequency).toBe(2); // 세션 1 + 외부 1
   });
 
+  it("⑧-2(Stage1-C3 T4) 외부 세션만 있고 실세트 0인 주는 버킷 부재로 미표시(도메인 동결 — 알려진 제약 박제)", () => {
+    // 실 SetRecord/SessionCompleted가 전혀 없는 주(cycleIndex:1, week:0)에 외부 세션만 넣으면
+    // 매칭되는 버킷이 아예 없어 조용히 버려진다 — 외부 세션은 빈도만 가산하는 부가 정보이지
+    // 버킷을 새로 만드는 근거가 아니다(analytics.ts weeklyAnalysis 주석에 명시된 계약).
+    const s = session("realWeek", 10, { cycleIndex: 0, week: 0, dayOrdinal: 1 });
+    const work = setRec("w1", "realWeek", "w1d1-latpull-acc", "latPulldown", 0, 10, {
+      actualWeight: 40,
+      actualReps: 10,
+    });
+    const buckets = run([work], [s], [], [
+      { cyclePos: { cycleIndex: 1, week: 0 }, groups: ["back"], programId: seed.id },
+    ]);
+    expect(buckets).toHaveLength(1);
+    expect(buckets[0]?.cycleIndex).toBe(0);
+    expect(buckets.some((b) => b.cycleIndex === 1)).toBe(false);
+  });
+
   it("⑨ day1 벤치 volume 9세트 완주 → chest 유효 정확히 1 (amrap backoff만)", () => {
     const s = session("bench1", 10, { cycleIndex: 0, week: 0, dayOrdinal: 1 });
     const reps = [8, 6, 4, 4, 4, 5, 6, 7, 8];

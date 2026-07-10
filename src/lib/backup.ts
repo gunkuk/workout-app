@@ -10,6 +10,8 @@ import {
   upsertProgramVersion,
   addToLibrary,
   setInstanceState,
+  listExternalSessions,
+  appendExternalSession,
 } from "../storage/eventStore";
 import { isIOS } from "./platform";
 import type {
@@ -20,6 +22,7 @@ import type {
   ProgramDefinition,
   ProgramInstanceState,
 } from "../domain/types.ts";
+import type { ExternalSessionRecord } from "../storage/db";
 
 /**
  * Task 7(C2) — JSON 백업 내보내기/가져오기(스펙 §2-8, §3.3).
@@ -39,6 +42,9 @@ export type BackupSnapshot = {
   /** library 테이블 원본(programId/addedAt) — listLibrary()의 조인 병합 결과가 아님(무손실 왕복). */
   library: { programId: string; addedAt: string }[];
   instanceState?: ProgramInstanceState;
+  /** 외부(크로스핏 등) 세션 원본(Stage1-C3 T4). schemaVersion은 그대로 1 유지 — 옛 백업(이 필드
+   * 없음)도 importSnapshot에서 `?? []`로 하위호환 수용한다. */
+  externalSessions: ExternalSessionRecord[];
 };
 
 /**
@@ -48,11 +54,12 @@ export type BackupSnapshot = {
  * 동일 쿼리를 두 번 다른 형태로 담을 필요가 없다(Map→array 변환 요구는 이미-배열인 소스 재사용으로 충족).
  */
 export async function exportSnapshot(): Promise<BackupSnapshot> {
-  const [foldInput, library, programs, instanceState] = await Promise.all([
+  const [foldInput, library, programs, instanceState, externalSessions] = await Promise.all([
     loadFoldInput(),
     getLibraryEntries(),
     getAllProgramVersions(),
     getInstanceState(),
+    listExternalSessions(),
   ]);
   const snapshot: BackupSnapshot = {
     schemaVersion: SCHEMA_VERSION,
@@ -62,6 +69,7 @@ export async function exportSnapshot(): Promise<BackupSnapshot> {
     sessions: foldInput.sessions,
     programs,
     library,
+    externalSessions,
   };
   if (instanceState) snapshot.instanceState = instanceState;
   return snapshot;
@@ -87,6 +95,9 @@ export async function importSnapshot(data: object): Promise<void> {
   const sessions = snapshot.sessions ?? [];
   const programs = snapshot.programs ?? [];
   const library = snapshot.library ?? [];
+  // 하위호환: 이 필드가 없는 옛 백업(externalSessions 도입 전, schemaVersion은 그대로 1)도
+  // `?? []`로 그대로 수용 — 스냅샷 schemaVersion은 올리지 않는다.
+  const externalSessions = snapshot.externalSessions ?? [];
 
   await Promise.all([
     ...sets.map((s) => appendSet(s)),
@@ -95,6 +106,7 @@ export async function importSnapshot(data: object): Promise<void> {
     ...sessions.map((s) => appendSession(s)),
     ...programs.map((p) => upsertProgramVersion(p)),
     ...library.map((l) => addToLibrary(l.programId, l.addedAt)),
+    ...externalSessions.map((e) => appendExternalSession(e)),
   ]);
 
   if (snapshot.instanceState) {

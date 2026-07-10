@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useProgramStore } from "../store/programStore";
-import { loadEventLog } from "../store/queries";
+import { loadEventLog, listExternalSessions, type ExternalSessionRecord } from "../store/queries";
 import { weeklyAnalysis, type GroupStats, type WeekBucket } from "../domain/analytics";
 import type { MuscleGroup } from "../domain/exerciseLibrary";
 import type { FoldInput } from "../domain/types.ts";
+import { nowISO } from "../lib/time";
 
 const GROUP_LABELS: Record<MuscleGroup, string> = {
   chest: "가슴",
@@ -37,15 +38,24 @@ function sortByFirstAt(buckets: WeekBucket[]): WeekBucket[] {
 export function AnalyticsScreen() {
   const activeProgram = useProgramStore((s) => s.activeProgram);
   const todayPos = useProgramStore((s) => s.todayPos);
+  const recordExternalSession = useProgramStore((s) => s.recordExternalSession);
   const [foldInput, setFoldInput] = useState<FoldInput | null>(null);
   const [manualIndex, setManualIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [externalSessions, setExternalSessions] = useState<ExternalSessionRecord[]>([]);
+  const [selectedGroups, setSelectedGroups] = useState<MuscleGroup[]>([]);
+  const [extBusy, setExtBusy] = useState(false);
+
+  async function loadExternal() {
+    setExternalSessions(await listExternalSessions());
+  }
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const input = await loadEventLog();
+        const [input] = await Promise.all([loadEventLog(), loadExternal()]);
         if (cancelled) return;
         setFoldInput(input);
       } catch {
@@ -58,6 +68,11 @@ export function AnalyticsScreen() {
     };
   }, []);
 
+  const mappedExternal = useMemo(
+    () => externalSessions.map((e) => ({ cyclePos: e.cyclePos, groups: e.groups, programId: e.programId })),
+    [externalSessions],
+  );
+
   const programBuckets = useMemo(() => {
     if (!foldInput || !activeProgram) return [];
     const buckets = weeklyAnalysis({
@@ -65,10 +80,63 @@ export function AnalyticsScreen() {
       corrections: foldInput.corrections,
       sessions: foldInput.sessions,
       programs: foldInput.programs,
-      externalSessions: [],
+      externalSessions: mappedExternal,
     });
     return sortByFirstAt(buckets.filter((b) => b.programId === activeProgram.id));
-  }, [foldInput, activeProgram]);
+  }, [foldInput, activeProgram, mappedExternal]);
+
+  /** 외부 세션 저장 시 쓸 cyclePos — "현재 위치(todayPos) 없으면 활성 프로그램의 최신 버킷" 계약. */
+  const externalCyclePos = todayPos
+    ? { cycleIndex: todayPos.cycleIndex, week: todayPos.week }
+    : programBuckets.length > 0
+      ? { cycleIndex: programBuckets[programBuckets.length - 1]!.cycleIndex, week: programBuckets[programBuckets.length - 1]!.week }
+      : undefined;
+
+  function toggleGroup(g: MuscleGroup) {
+    setSelectedGroups((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]));
+  }
+
+  async function handleAddExternal() {
+    if (!activeProgram || !externalCyclePos || selectedGroups.length === 0) return;
+    setExtBusy(true);
+    try {
+      await recordExternalSession({
+        id: crypto.randomUUID(),
+        at: nowISO(),
+        groups: selectedGroups,
+        programId: activeProgram.id,
+        cyclePos: externalCyclePos,
+      });
+      setSelectedGroups([]);
+      await loadExternal();
+    } finally {
+      setExtBusy(false);
+    }
+  }
+
+  const externalSection = activeProgram && (
+    <section>
+      <h3>외부 세션 추가</h3>
+      {(Object.entries(GROUP_LABELS) as [MuscleGroup, string][]).map(([group, label]) => (
+        <label key={group}>
+          <input
+            type="checkbox"
+            data-testid={`external-group-${group}`}
+            checked={selectedGroups.includes(group)}
+            onChange={() => toggleGroup(group)}
+          />
+          {label}
+        </label>
+      ))}
+      <button
+        type="button"
+        onClick={handleAddExternal}
+        disabled={extBusy || !externalCyclePos || selectedGroups.length === 0}
+      >
+        저장
+      </button>
+    </section>
+  );
 
   const defaultIndex = useMemo(() => {
     if (programBuckets.length === 0) return -1;
@@ -94,6 +162,7 @@ export function AnalyticsScreen() {
       <div>
         <h2>주간 분석</h2>
         <p>아직 분석할 세션 데이터가 없습니다</p>
+        {externalSection}
       </div>
     );
   }
@@ -145,6 +214,7 @@ export function AnalyticsScreen() {
         </tbody>
       </table>
       <p>{LOWER_BODY_FOOTNOTE}</p>
+      {externalSection}
     </div>
   );
 }

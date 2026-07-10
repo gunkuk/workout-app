@@ -1,5 +1,6 @@
-import { loadFoldInput, listLibrary } from "../storage/eventStore";
+import { loadFoldInput, listLibrary, listExternalSessions as listExternalSessionsStore } from "../storage/eventStore";
 import type { FoldInput, ProgramDefinition } from "../domain/types.ts";
+export type { ExternalSessionRecord } from "../storage/db";
 
 /**
  * 이벤트 로그 읽기 포털 — loadFoldInput 1:1 위임(Stage1-R T3). 화면들이 storage/eventStore를
@@ -12,4 +13,9 @@ export function loadEventLog(): Promise<FoldInput> {
 /** 라이브러리 목록(각 프로그램 최신 버전) — listLibrary 위임(Stage1-C3 T2). */
 export function listPrograms(): Promise<ProgramDefinition[]> {
   return listLibrary();
+}
+
+/** 외부(크로스핏 등) 세션 전체 조회 — listExternalSessions 위임(Stage1-C3 T4). */
+export function listExternalSessions() {
+  return listExternalSessionsStore();
 }

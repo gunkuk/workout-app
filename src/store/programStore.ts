@@ -11,7 +11,9 @@ import {
   upsertProgramVersion,
   addToLibrary,
   setInstanceState,
+  appendExternalSession,
 } from "../storage/eventStore";
+import type { ExternalSessionRecord } from "../storage/db";
 import { foldState } from "../domain/fold";
 import { rollingCyclePos, calendarCyclePos } from "../domain/cyclePos";
 import { buildWorkoutPlan, type WorkoutPlan } from "../domain/programEngine";
@@ -61,6 +63,9 @@ export type ProgramStoreState = {
   importProgram(program: ProgramDefinition): Promise<void>;
   /** 라이브러리 전환 — 새 InstanceState 설정 후 재fold. 과거 이력(SetRecord 등)은 불변(Stage1-C3 T2, 스펙 §2-7). */
   switchProgram(instanceState: ProgramInstanceState): Promise<void>;
+  /** 외부(크로스핏 등) 세션 기록 후 재fold(Stage1-C3 T4) — programStore 파생 상태엔 직접 영향 없지만
+   * 다른 mutation과 동일하게 기록 후 load()로 일관 새로고침한다. */
+  recordExternalSession(rec: ExternalSessionRecord): Promise<void>;
 };
 
 const EMPTY_STATE = {
@@ -203,6 +208,11 @@ export const useProgramStore = create<ProgramStoreState>()((set, get) => ({
 
   async switchProgram(instanceState) {
     await setInstanceState(instanceState);
+    await get().load();
+  },
+
+  async recordExternalSession(rec) {
+    await appendExternalSession(rec);
     await get().load();
   },
 }));

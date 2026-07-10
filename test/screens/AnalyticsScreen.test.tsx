@@ -2,7 +2,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { db } from "../../src/storage/db";
-import { appendSet, appendSession, upsertProgramVersion } from "../../src/storage/eventStore";
+import {
+  appendSet,
+  appendSession,
+  upsertProgramVersion,
+  listExternalSessions,
+  addToLibrary,
+  setInstanceState,
+} from "../../src/storage/eventStore";
 import { useProgramStore } from "../../src/store/programStore";
 import { weeklyAnalysis } from "../../src/domain/analytics";
 import { programKey } from "../../src/domain/foldSupport";
@@ -80,6 +87,7 @@ beforeEach(async () => {
     db.decisions.clear(),
     db.sessions.clear(),
     db.programVersions.clear(),
+    db.externalSessions.clear(),
   ]);
   useProgramStore.setState(useProgramStore.getInitialState(), true);
 });
@@ -161,5 +169,38 @@ describe("AnalyticsScreen", () => {
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     spy.mockRestore();
+  });
+
+  it("⑦(Stage1-C3 T4) 외부 세션 추가 → 그 주 빈도 +1(validSets·톤수 불변)", async () => {
+    await seedTwoWeeks();
+    // recordExternalSession이 내부적으로 get().load()(실제 DB 재조회)를 호출하므로, 다른 테스트와
+    // 달리 raw setState만으로는 부족 — library·instanceState도 실제로 채워둬야 load() 후에도
+    // status:"ready"·activeProgram이 유지된다(비어있으면 load()가 EMPTY_STATE로 되돌림).
+    await addToLibrary(seed.id, "2026-07-01T00:00:00Z");
+    await setInstanceState({ programId: seed.id, programVersion: seed.version, mode: "rolling", anchor: {}, schemaVersion: 1 });
+    setStoreReady({ cycleIndex: 0, week: 1, dayOrdinal: 5 }); // week1과 정확히 매칭 → todayPos 기준 cyclePos
+
+    render(<AnalyticsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("analytics-week-label")).toHaveTextContent("2주차"));
+    expect(screen.getByTestId("analytics-validSets-back")).toHaveTextContent("2");
+    expect(screen.getByTestId("analytics-tonnage-back")).toHaveTextContent("600");
+    expect(screen.getByTestId("analytics-frequency-back")).toHaveTextContent("1");
+
+    fireEvent.click(screen.getByTestId("external-group-back"));
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
+
+    await waitFor(() => expect(screen.getByTestId("analytics-frequency-back")).toHaveTextContent("2"));
+    // 유효세트·톤수는 외부 세션의 영향을 받지 않는다(빈도만 가산).
+    expect(screen.getByTestId("analytics-validSets-back")).toHaveTextContent("2");
+    expect(screen.getByTestId("analytics-tonnage-back")).toHaveTextContent("600");
+
+    const stored = await listExternalSessions();
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).toMatchObject({
+      groups: ["back"],
+      programId: seed.id,
+      cyclePos: { cycleIndex: 0, week: 1 },
+    });
   });
 });
