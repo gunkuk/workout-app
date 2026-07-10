@@ -1,5 +1,4 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { upsertProgramVersion, addToLibrary, setInstanceState, appendDecision } from "../storage/eventStore";
 import { useProgramStore } from "../store/programStore";
 import { nowISO } from "../lib/time";
 import { isIOS } from "../lib/platform";
@@ -42,7 +41,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const load = useProgramStore((s) => s.load);
+  const seedProgram = useProgramStore((s) => s.seedProgram);
 
   // 마운트 시 1회 판정 — display-mode는 세션 중 안 바뀐다고 가정(변경 시 새로고침으로 재판정, MVP 범위).
   const showBanner = useMemo(() => !isStandalone(), []);
@@ -68,20 +67,11 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
 
     setSubmitting(true);
     try {
-      const seedProgram = JSON.parse(seedRaw) as ProgramDefinition;
+      const program = JSON.parse(seedRaw) as ProgramDefinition;
       const at = nowISO();
-      await upsertProgramVersion(seedProgram);
-      await addToLibrary(seedProgram.id, at);
-      await setInstanceState({
-        programId: seedProgram.id,
-        programVersion: seedProgram.version,
-        mode: "rolling",
-        anchor: {},
-        schemaVersion: 1,
-      });
-      for (const ex of ALL_EXERCISES) {
+      const decisions: DecisionEvent[] = ALL_EXERCISES.map((ex) => {
         const target: DecisionTarget = { kind: "tm", exerciseId: ex.id };
-        const decision: DecisionEvent = {
+        return {
           id: crypto.randomUUID(),
           target,
           kind: "seed",
@@ -89,9 +79,19 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
           at,
           schemaVersion: 1,
         };
-        await appendDecision(decision);
-      }
-      await load();
+      });
+      await seedProgram(
+        program,
+        { programId: program.id, addedAt: at },
+        {
+          programId: program.id,
+          programVersion: program.version,
+          mode: "rolling",
+          anchor: {},
+          schemaVersion: 1,
+        },
+        decisions,
+      );
       onComplete?.();
     } catch {
       setError("저장 실패 — 다시 시도해주세요.");

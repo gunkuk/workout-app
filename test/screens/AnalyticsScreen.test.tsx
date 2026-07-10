@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { db } from "../../src/storage/db";
@@ -7,6 +7,7 @@ import { useProgramStore } from "../../src/store/programStore";
 import { weeklyAnalysis } from "../../src/domain/analytics";
 import { programKey } from "../../src/domain/foldSupport";
 import { AnalyticsScreen } from "../../src/screens/AnalyticsScreen";
+import * as queries from "../../src/store/queries";
 import type { SessionCompleted, SetRecord } from "../../src/domain/types.ts";
 import { loadSeedProgram } from "../helpers/seed";
 
@@ -150,5 +151,15 @@ describe("AnalyticsScreen", () => {
     render(<AnalyticsScreen />);
 
     expect(await screen.findByText("아직 분석할 세션 데이터가 없습니다")).toBeInTheDocument();
+  });
+
+  it("⑥ loadEventLog 실패 → role=alert 에러 표시", async () => {
+    setStoreReady({ cycleIndex: 0, week: 0, dayOrdinal: 5 });
+    const spy = vi.spyOn(queries, "loadEventLog").mockRejectedValue(new Error("boom"));
+
+    render(<AnalyticsScreen />);
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    spy.mockRestore();
   });
 });

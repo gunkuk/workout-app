@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { loadFoldInput } from "../storage/eventStore";
+import { loadEventLog } from "../store/queries";
 import { sortByAtId } from "../domain/order";
 import { applyCorrections } from "../domain/corrections";
 import { tmHistory, e1rmSeries } from "../domain/e1rm";
@@ -28,15 +28,21 @@ export function HistoryScreen() {
   const [foldInput, setFoldInput] = useState<FoldInput | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const input = await loadFoldInput();
-      if (cancelled) return;
-      setSessions(sortByAtId(input.sessions).reverse());
-      setSets(input.sets);
-      setFoldInput(input);
+      try {
+        const input = await loadEventLog();
+        if (cancelled) return;
+        setSessions(sortByAtId(input.sessions).reverse());
+        setSets(input.sets);
+        setFoldInput(input);
+      } catch {
+        if (cancelled) return;
+        setError("불러오기 실패 — 다시 시도해주세요.");
+      }
     })();
     return () => {
       cancelled = true;
@@ -53,6 +59,10 @@ export function HistoryScreen() {
     const effective = applyCorrections(foldInput.sets, foldInput.corrections);
     return e1rmSeries(effective).filter((s) => s.exerciseId === selectedExerciseId);
   }, [foldInput, selectedExerciseId]);
+
+  if (error) {
+    return <div role="alert">{error}</div>;
+  }
 
   if (sessions === null) {
     return <div>로딩 중...</div>;

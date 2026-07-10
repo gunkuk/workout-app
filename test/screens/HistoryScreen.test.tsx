@@ -1,9 +1,10 @@
-import { describe, it, expect, afterEach, beforeEach } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, within, cleanup } from "@testing-library/react";
 import { db } from "../../src/storage/db";
 import { appendSession, appendSet, appendDecision } from "../../src/storage/eventStore";
 import { HistoryScreen } from "../../src/screens/HistoryScreen";
+import * as queries from "../../src/store/queries";
 import type { SessionCompleted, SetRecord, DecisionEvent } from "../../src/domain/types.ts";
 
 // Task 6(C1) — HistoryScreen: 캘린더 없이 세션 리스트만(최신순) + 클릭 시 세트 요약 펼침.
@@ -172,5 +173,12 @@ describe("HistoryScreen", () => {
     const polyline = await waitFor(() => within(tmSection).getByTestId("linechart-polyline"));
     const coords = polyline.getAttribute("points")!.trim().split(" ");
     expect(coords).toHaveLength(2); // 결정 3건이지만 압축되어 100·105 두 좌표만
+  });
+
+  it("⑧ loadEventLog 실패 → role=alert 에러 표시", async () => {
+    const spy = vi.spyOn(queries, "loadEventLog").mockRejectedValue(new Error("boom"));
+    render(<HistoryScreen />);
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    spy.mockRestore();
   });
 });

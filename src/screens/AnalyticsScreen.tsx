@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useProgramStore } from "../store/programStore";
-import { loadFoldInput } from "../storage/eventStore";
+import { loadEventLog } from "../store/queries";
 import { weeklyAnalysis, type GroupStats, type WeekBucket } from "../domain/analytics";
 import type { MuscleGroup } from "../domain/exerciseLibrary";
 import type { FoldInput } from "../domain/types.ts";
@@ -39,13 +39,19 @@ export function AnalyticsScreen() {
   const todayPos = useProgramStore((s) => s.todayPos);
   const [foldInput, setFoldInput] = useState<FoldInput | null>(null);
   const [manualIndex, setManualIndex] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const input = await loadFoldInput();
-      if (cancelled) return;
-      setFoldInput(input);
+      try {
+        const input = await loadEventLog();
+        if (cancelled) return;
+        setFoldInput(input);
+      } catch {
+        if (cancelled) return;
+        setError("불러오기 실패 — 다시 시도해주세요.");
+      }
     })();
     return () => {
       cancelled = true;
@@ -74,6 +80,10 @@ export function AnalyticsScreen() {
 
   const index =
     manualIndex !== null && manualIndex >= 0 && manualIndex < programBuckets.length ? manualIndex : defaultIndex;
+
+  if (error) {
+    return <div role="alert">{error}</div>;
+  }
 
   if (foldInput === null || !activeProgram) {
     return <div>로딩 중...</div>;

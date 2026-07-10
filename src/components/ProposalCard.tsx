@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useProgramStore } from "../store/programStore";
-import { appendDecision } from "../storage/eventStore";
 import { nowISO } from "../lib/time";
 import type { Proposal, DecisionEvent } from "../domain/types.ts";
 
@@ -28,7 +27,7 @@ function kindFor(type: Proposal["type"]): DecisionEvent["kind"] {
  * "동결/보류"는 아무 것도 쓰지 않는 무동작 버튼 — 클릭하지 않고 두어도 동일하게 카드가 계속 보류 상태로 남는다.
  */
 export function ProposalCard({ proposal }: ProposalCardProps) {
-  const refreshAfterWrite = useProgramStore((s) => s.refreshAfterWrite);
+  const acceptProposal = useProgramStore((s) => s.acceptProposal);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSelect(value: number) {
@@ -43,8 +42,7 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
       schemaVersion: 1,
     };
     try {
-      await appendDecision(decision);
-      await refreshAfterWrite();
+      await acceptProposal(decision);
     } catch {
       setError("저장 실패 — 다시 시도해주세요.");
     }
