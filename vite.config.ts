@@ -3,10 +3,11 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
-// base: "./" — GitHub Pages 저장소 이름이 아직 확정되지 않아 상대 경로로 둔다.
-// Plan C2 배포 단계에서 실제 repo명이 정해지면 "/repo-name/"으로 재검토할 것.
+// base: 기본 "./"(로컬 dev/build 무변경). GitHub Pages 배포 시 VITE_BASE 환경변수로
+// "/저장소명/"을 오버라이드(CI 워크플로가 저장소명으로 자동 설정 — docs/deploy.md 참고).
+// vite.config.ts는 Node에서 실행되므로 process.env 접근 가능(브라우저 번들과 무관).
 export default defineConfig({
-  base: "./",
+  base: process.env.VITE_BASE ?? "./",
   plugins: [
     react(),
     VitePWA({

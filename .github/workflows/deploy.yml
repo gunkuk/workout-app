@@ -1,0 +1,50 @@
+name: Deploy to GitHub Pages
+
+# 수동 트리거만(workflow_dispatch) — push 시 자동 배포 없음.
+# Actions 탭 → "Deploy to GitHub Pages" → Run workflow 로 직접 실행할 것 (docs/deploy.md 참고).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      # 품질 게이트 — 배포 전 테스트/타입체크/린트 통과 강제
+      - run: npm run test
+      - run: npm run typecheck
+      - run: npm run lint
+
+      - run: npm run build:pages
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
