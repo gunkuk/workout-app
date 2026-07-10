@@ -36,10 +36,18 @@ export async function acquireWakeLock(): Promise<WakeLockHandle> {
   }
 
   let sentinel: WakeLockSentinel | null = null;
+  let released = false;
 
   async function request(): Promise<void> {
     try {
-      sentinel = (await wakeLockApi!.request("screen")) as WakeLockSentinel;
+      const acquired = (await wakeLockApi!.request("screen")) as WakeLockSentinel;
+      // release()가 request 진행 중에 호출됐다면 새 잠금을 보관하지 않고 즉시 해제
+      // (in-flight request가 해제된 sentinel을 덮어써 잠금이 누수되는 레이스 차단).
+      if (released) {
+        acquired.release().catch(() => {});
+        return;
+      }
+      sentinel = acquired;
     } catch {
       // 권한 거부·미지원 등 — silent(스펙 §7).
     }
@@ -48,7 +56,7 @@ export async function acquireWakeLock(): Promise<WakeLockHandle> {
   await request();
 
   function onVisibilityChange(): void {
-    if (document.visibilityState === "visible") {
+    if (document.visibilityState === "visible" && !released) {
       void request();
     }
   }
@@ -56,6 +64,7 @@ export async function acquireWakeLock(): Promise<WakeLockHandle> {
 
   return {
     release: () => {
+      released = true;
       document.removeEventListener("visibilitychange", onVisibilityChange);
       sentinel?.release().catch(() => {});
       sentinel = null;
