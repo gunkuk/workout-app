@@ -679,3 +679,42 @@ button {
 [data-testid="e1rm-chart-substituted"] .linechart-polyline {
   stroke: var(--teal);
 }
+
+
+/* ---------- 설정 화면 레이아웃 정리 (VLM 검수 2026-07-10: 라디오·버튼·TM행 겹침, 파일입력 이질감) ---------- */
+.settings-card label:has(> input[type="radio"]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 16px;
+  min-height: 44px;
+}
+.settings-card .btn {
+  margin-top: 10px;
+}
+.settings-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.settings-card li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+  min-height: 44px;
+}
+input[type="file"] {
+  color: var(--muted);
+  max-width: 100%;
+}
+input[type="file"]::file-selector-button {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  margin-right: 10px;
+  cursor: pointer;
+}
