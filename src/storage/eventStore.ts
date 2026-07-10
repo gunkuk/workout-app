@@ -51,6 +51,11 @@ export async function listLibrary(): Promise<ProgramDefinition[]> {
   return result;
 }
 
+/** 라이브러리에 프로그램 등록 — Task 5(온보딩) 최초 시드용, 스토어 캡슐화 유지(스크린이 db 직접 참조 안 함) */
+export async function addToLibrary(programId: string, addedAt: string): Promise<void> {
+  await db.library.put({ programId, addedAt });
+}
+
 export async function getInstanceState(): Promise<ProgramInstanceState | undefined> {
   const row = await db.instanceState.get("active");
   if (!row) return undefined;
