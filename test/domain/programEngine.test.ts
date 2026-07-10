@@ -2,9 +2,10 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { buildWorkoutPlan, lightConventionalPreset } from "../../src/domain/programEngine";
 import { DEFAULT_PLATES } from "../../src/domain/plates";
-import type { ProgramDefinition, AccessoryState } from "../../src/domain/types.ts";
+import type { AccessoryState } from "../../src/domain/types.ts";
+import { loadSeedProgram } from "../helpers/seed";
 
-const seed = JSON.parse(readFileSync("programs/nsuns-5day.json", "utf8")) as ProgramDefinition;
+const seed = loadSeedProgram();
 const tm = { bench: 105, ohp: 67.5, squat: 85, deadlift: 140 };
 
 describe("buildWorkoutPlan", () => {

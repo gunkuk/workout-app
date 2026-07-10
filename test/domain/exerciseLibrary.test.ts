@@ -1,12 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
 import { EXERCISES, exerciseInfo } from "../../src/domain/exerciseLibrary";
+import { loadSeedProgram } from "../helpers/seed";
 
 describe("exerciseLibrary", () => {
   it("nSuns 시드 JSON의 모든 exerciseId가 라이브러리에 존재", () => {
-    const seedJson = JSON.parse(
-      readFileSync("programs/nsuns-5day.json", "utf-8")
-    );
+    const seedJson = loadSeedProgram();
     const exerciseIds = new Set<string>();
 
     for (const week of seedJson.weeks) {

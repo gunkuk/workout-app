@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
 import { weeklyAnalysis, type ExternalSession } from "../../src/domain/analytics";
 import { programKey } from "../../src/domain/foldSupport";
 import type {
@@ -8,8 +7,9 @@ import type {
   SessionCompleted,
   CorrectionRecord,
 } from "../../src/domain/types.ts";
+import { loadSeedProgram } from "../helpers/seed";
 
-const seed = JSON.parse(readFileSync("programs/nsuns-5day.json", "utf8")) as ProgramDefinition;
+const seed = loadSeedProgram();
 const programs = new Map([[programKey(seed.id, seed.version), seed]]);
 
 function at(day: number, hh = 9, mm = 0): string {

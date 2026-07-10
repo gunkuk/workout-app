@@ -1,20 +1,21 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
-import { readFileSync } from "node:fs";
 import { db } from "../../src/storage/db";
-import { appendSet, appendSession, appendDecision, upsertProgramVersion, setInstanceState } from "../../src/storage/eventStore";
+import { appendSet, appendSession } from "../../src/storage/eventStore";
 import { useProgramStore } from "../../src/store/programStore";
 import { sessionIdFor } from "../../src/screens/TodayScreen";
 import { ProposalCard } from "../../src/components/ProposalCard";
-import type { ProgramDefinition, DecisionEvent, SetRecord, SessionCompleted, CyclePos, Proposal } from "../../src/domain/types.ts";
+import type { DecisionEvent, SetRecord, SessionCompleted, CyclePos, Proposal } from "../../src/domain/types.ts";
+import { resetDb } from "../helpers/db";
+import { loadSeedProgram, seedOnboarded as seedOnboardedHelper } from "../helpers/seed";
 
 // Task 1 — ProposalCard: pendingProposals(fold가 계산) -> DecisionEvent(승인) 왕복.
 // TodayScreen이 실제로 하게 될 `pendingProposals.map(p => <ProposalCard proposal={p} />)`을
 // 그대로 로컬 헬퍼(ProposalList)로 재현해, 실 nSuns 시드 + eventStore + programStore(실제, mock 아님)
 // 조합으로 fold가 만든 진짜 Proposal을 카드에 먹여 검증한다(TodayScreen.test.tsx와 동일 픽스처 패턴).
 
-const seed = JSON.parse(readFileSync("programs/nsuns-5day.json", "utf8")) as ProgramDefinition;
+const seed = loadSeedProgram();
 
 const TM = { bench: 105, ohp: 67.5, squat: 85, deadlift: 140 };
 
@@ -33,16 +34,7 @@ const seedDecisions: DecisionEvent[] = (["bench", "ohp", "squat", "deadlift"] as
 
 /** 온보딩 완료 상태 재현(TodayScreen.test.tsx와 동일 패턴). extra로 T2 전용 TM 등 추가 시드 주입. */
 async function seedOnboarded(extra: DecisionEvent[] = []): Promise<void> {
-  await upsertProgramVersion(seed);
-  await db.library.put({ programId: seed.id, addedAt: at(1, 8) });
-  await setInstanceState({
-    programId: seed.id,
-    programVersion: seed.version,
-    mode: "rolling",
-    anchor: {},
-    schemaVersion: 1,
-  });
-  for (const d of [...seedDecisions, ...extra]) await appendDecision(d);
+  await seedOnboardedHelper(seed, seedDecisions, at(1, 8), extra);
 }
 
 function sessionCompletedFor(pos: CyclePos, day: number, hh: number): SessionCompleted {
@@ -190,15 +182,7 @@ afterEach(() => {
 });
 
 beforeEach(async () => {
-  await Promise.all([
-    db.setRecords.clear(),
-    db.corrections.clear(),
-    db.decisions.clear(),
-    db.sessions.clear(),
-    db.programVersions.clear(),
-    db.instanceState.clear(),
-    db.library.clear(),
-  ]);
+  await resetDb();
   useProgramStore.setState(useProgramStore.getInitialState(), true);
 });
 

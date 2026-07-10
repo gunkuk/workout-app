@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
-import { db } from "../../src/storage/db";
 import { getInstanceState, listLibrary, loadFoldInput, getProgram } from "../../src/storage/eventStore";
 import { useProgramStore } from "../../src/store/programStore";
 import { OnboardingScreen } from "../../src/screens/OnboardingScreen";
+import { resetDb } from "../helpers/db";
+import { mockMatchMedia } from "../helpers/dom";
 
 // Task 5 — 온보딩: TM 시드(8종) + 최초 인스턴스 생성 + 설치 배너.
 // 실제 nSuns 시드(component가 ?raw import로 읽는 것과 동일 파일)를 대상으로,
@@ -39,34 +40,12 @@ function fillAll(values: Record<string, string>) {
   }
 }
 
-/** jsdom은 matchMedia 미구현 — 컴포넌트의 standalone 판정을 테스트별로 제어하기 위한 최소 스텁 */
-function mockMatchMedia(matches: boolean) {
-  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-    matches,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })) as unknown as typeof window.matchMedia;
-}
-
 afterEach(() => {
   cleanup();
 });
 
 beforeEach(async () => {
-  await Promise.all([
-    db.setRecords.clear(),
-    db.corrections.clear(),
-    db.decisions.clear(),
-    db.sessions.clear(),
-    db.programVersions.clear(),
-    db.instanceState.clear(),
-    db.library.clear(),
-  ]);
+  await resetDb();
   useProgramStore.setState(useProgramStore.getInitialState(), true);
   mockMatchMedia(false); // 기본값: standalone 아님(배너 표시) — ④ 테스트에서만 true로 override
 });

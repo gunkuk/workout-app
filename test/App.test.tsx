@@ -1,19 +1,19 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, cleanup, act } from "@testing-library/react";
-import { readFileSync } from "node:fs";
-import { db } from "../src/storage/db";
-import { upsertProgramVersion, setInstanceState, appendDecision } from "../src/storage/eventStore";
 import { useProgramStore } from "../src/store/programStore";
 import App from "../src/App";
-import type { ProgramDefinition, DecisionEvent } from "../src/domain/types.ts";
+import type { DecisionEvent } from "../src/domain/types.ts";
+import { resetDb } from "./helpers/db";
+import { loadSeedProgram, seedOnboarded as seedOnboardedHelper } from "./helpers/seed";
+import { mockMatchMedia } from "./helpers/dom";
 
 // Task 7 — NavShell + App 라우팅 통합.
 // 실제 nSuns 시드 + eventStore + programStore(zustand, 실제 — mock 아님)로 empty/ready 상태를
 // fake-indexeddb 위에 재현하고, App을 실제 렌더해 라우팅·탭 상호작용까지 통합 검증한다
 // (TodayScreen.test.tsx·OnboardingScreen.test.tsx와 동일 픽스처 패턴).
 
-const seed = JSON.parse(readFileSync("programs/nsuns-5day.json", "utf8")) as ProgramDefinition;
+const seed = loadSeedProgram();
 
 const TM = { bench: 105, ohp: 67.5, squat: 85, deadlift: 140 };
 
@@ -27,30 +27,7 @@ const seedDecisions: DecisionEvent[] = (["bench", "ohp", "squat", "deadlift"] as
 }));
 
 async function seedOnboarded(): Promise<void> {
-  await upsertProgramVersion(seed);
-  await db.library.put({ programId: seed.id, addedAt: "2026-07-01T08:00:00Z" });
-  await setInstanceState({
-    programId: seed.id,
-    programVersion: seed.version,
-    mode: "rolling",
-    anchor: {},
-    schemaVersion: 1,
-  });
-  for (const d of seedDecisions) await appendDecision(d);
-}
-
-/** jsdom은 matchMedia 미구현 — OnboardingScreen이 마운트 시 판정하므로 매 테스트에서 스텁 필요 */
-function mockMatchMedia(matches: boolean) {
-  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-    matches,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })) as unknown as typeof window.matchMedia;
+  await seedOnboardedHelper(seed, seedDecisions, "2026-07-01T08:00:00Z");
 }
 
 function setHash(hash: string): void {
@@ -64,15 +41,7 @@ afterEach(() => {
 });
 
 beforeEach(async () => {
-  await Promise.all([
-    db.setRecords.clear(),
-    db.corrections.clear(),
-    db.decisions.clear(),
-    db.sessions.clear(),
-    db.programVersions.clear(),
-    db.instanceState.clear(),
-    db.library.clear(),
-  ]);
+  await resetDb();
   useProgramStore.setState(useProgramStore.getInitialState(), true);
   mockMatchMedia(false);
   window.location.hash = "";

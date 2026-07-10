@@ -1,9 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, fireEvent, waitFor, within, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { db } from "../../src/storage/db";
 import { useProgramStore } from "../../src/store/programStore";
 import App from "../../src/App";
+import { resetDb } from "../helpers/db";
+import { mockMatchMedia } from "../helpers/dom";
+import { completeAllRows, waitForWarmupSettled } from "../helpers/todayScreenInteractions";
 
 // Task 8 — 통합 골든패스(자동): 온보딩→오늘 세션 완주→히스토리 반영→새로고침 후 영속 확인.
 // TodayScreen.test.tsx·OnboardingScreen.test.tsx·App.test.tsx와 동일한 픽스처 패턴(실제 nSuns 시드,
@@ -33,62 +36,12 @@ const TM_VALUES: Record<string, string> = {
   cgbp: "70",
 };
 
-/** jsdom은 matchMedia 미구현 — OnboardingScreen이 마운트 시 판정하므로 스텁 필요 (다른 화면 테스트와 동일) */
-function mockMatchMedia(matches: boolean) {
-  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-    matches,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })) as unknown as typeof window.matchMedia;
-}
-
-/** 마운트 시 워밍업 자동기록(비동기)이 끝날 때까지 대기 — TodayScreen.test.tsx와 동일 패턴 */
-async function waitForWarmupSettled(): Promise<void> {
-  await waitFor(async () => {
-    const recs = await db.setRecords.toArray();
-    expect(recs.some((r) => r.setType === "warmup")).toBe(true);
-  });
-}
-
-/** 렌더된 모든 미완료 setrow를 순서대로 완료 처리한다 — 일반 행은 탭, 자유입력(needsInit) 행은
- *  값 입력 후 제출 버튼 클릭. 이미 완료(aria-label="완료됨")된 행은 건너뛴다.
- *  (TodayScreen.test.tsx의 completeAllRows와 동일 — 파일 간 비공개 헬퍼라 재사용 대신 복제) */
-async function completeAllRows(container: HTMLElement): Promise<void> {
-  const rows = Array.from(container.querySelectorAll('[data-testid^="setrow-"]')) as HTMLElement[];
-  for (const row of rows) {
-    if (row.querySelector('[aria-label="완료됨"]')) continue;
-    const weightInput = row.querySelector('input[aria-label="무게 입력"]') as HTMLInputElement | null;
-    if (weightInput) {
-      const repsInput = row.querySelector('input[aria-label="렙 입력"]') as HTMLInputElement;
-      fireEvent.change(weightInput, { target: { value: "20" } });
-      fireEvent.change(repsInput, { target: { value: "10" } });
-      fireEvent.click(within(row).getByRole("button", { name: /완료|저장/ }));
-    } else {
-      fireEvent.click(row);
-    }
-    await waitFor(() => expect(row.querySelector('[aria-label="완료됨"]')).toBeTruthy());
-  }
-}
-
 afterEach(() => {
   cleanup();
 });
 
 beforeEach(async () => {
-  await Promise.all([
-    db.setRecords.clear(),
-    db.corrections.clear(),
-    db.decisions.clear(),
-    db.sessions.clear(),
-    db.programVersions.clear(),
-    db.instanceState.clear(),
-    db.library.clear(),
-  ]);
+  await resetDb();
   useProgramStore.setState(useProgramStore.getInitialState(), true);
   mockMatchMedia(false);
   window.location.hash = "";

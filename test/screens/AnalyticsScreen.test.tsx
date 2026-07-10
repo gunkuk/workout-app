@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
-import { readFileSync } from "node:fs";
 import { db } from "../../src/storage/db";
 import { appendSet, appendSession, upsertProgramVersion } from "../../src/storage/eventStore";
 import { useProgramStore } from "../../src/store/programStore";
 import { weeklyAnalysis } from "../../src/domain/analytics";
 import { programKey } from "../../src/domain/foldSupport";
 import { AnalyticsScreen } from "../../src/screens/AnalyticsScreen";
-import type { ProgramDefinition, SessionCompleted, SetRecord } from "../../src/domain/types.ts";
+import type { SessionCompleted, SetRecord } from "../../src/domain/types.ts";
+import { loadSeedProgram } from "../helpers/seed";
 
 // Task 5(C2) — AnalyticsScreen: weeklyAnalysis(domain/analytics.ts) 결과를 표로 렌더.
 // 실제 nSuns 시드 + eventStore + programStore(zustand, 실제 — mock 아님)로 재현한다
@@ -16,7 +16,7 @@ import type { ProgramDefinition, SessionCompleted, SetRecord } from "../../src/d
 // 전체를 재현하는 대신 이 화면이 실제로 읽는 필드(activeProgram·todayPos)만 직접 setState한다 —
 // 이 화면은 그 두 필드 외 store 상태를 소비하지 않으므로 최소 셋업으로 충분(단순성 우선).
 
-const seed = JSON.parse(readFileSync("programs/nsuns-5day.json", "utf8")) as ProgramDefinition;
+const seed = loadSeedProgram();
 const programs = new Map([[programKey(seed.id, seed.version), seed]]);
 
 function session(id: string, at: string, cyclePos: { cycleIndex: number; week: number; dayOrdinal: number }): SessionCompleted {

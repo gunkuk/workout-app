@@ -21,6 +21,7 @@ import type {
   ProgramDefinition,
   ProgramInstanceState,
 } from "../../src/domain/types.ts";
+import { resetDb } from "../helpers/db";
 
 function program(id: string, version: number, over: Partial<ProgramDefinition> = {}): ProgramDefinition {
   return {
@@ -49,15 +50,7 @@ function setRec(id: string, over: Partial<SetRecord> = {}): SetRecord {
 }
 
 beforeEach(async () => {
-  await Promise.all([
-    db.setRecords.clear(),
-    db.corrections.clear(),
-    db.decisions.clear(),
-    db.sessions.clear(),
-    db.programVersions.clear(),
-    db.instanceState.clear(),
-    db.library.clear(),
-  ]);
+  await resetDb();
 });
 
 describe("eventStore", () => {

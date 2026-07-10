@@ -1,21 +1,23 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, within, cleanup } from "@testing-library/react";
-import { readFileSync } from "node:fs";
 import { db } from "../../src/storage/db";
-import { appendSession, appendDecision, upsertProgramVersion, setInstanceState } from "../../src/storage/eventStore";
+import { appendSession } from "../../src/storage/eventStore";
 import { useProgramStore } from "../../src/store/programStore";
 import { TodayScreen, sessionIdFor } from "../../src/screens/TodayScreen";
 import { ExerciseSwap } from "../../src/components/ExerciseSwap";
-import type { ProgramDefinition, DecisionEvent, CyclePos } from "../../src/domain/types.ts";
+import type { DecisionEvent, CyclePos } from "../../src/domain/types.ts";
 import type { PlannedSlot } from "../../src/domain/programEngine";
+import { resetDb } from "../helpers/db";
+import { loadSeedProgram, seedOnboarded as seedOnboardedHelper } from "../helpers/seed";
+import { completeAllRows, waitForWarmupSettled } from "../helpers/todayScreenInteractions";
 
 // Task 3 — ExerciseSwap: 스킵/통증일(경량) 대체 슬롯 헤더 컨트롤.
 // ④⑦은 순수 컴포넌트 테스트(store/db 불필요), ⑤⑥은 TodayScreen(실제, 이 컴포넌트가 실제로
 // 배선되는 화면)을 통해 handleComplete 5번째 인자(swappedFrom) 배선·sessionStorage 스킵 영속을
 // 통합 검증한다(ProposalCard.test.tsx·TodayScreen.test.tsx와 동일한 실 nSuns 시드 + 실 store 패턴).
 
-const seed = JSON.parse(readFileSync("programs/nsuns-5day.json", "utf8")) as ProgramDefinition;
+const seed = loadSeedProgram();
 
 const TM = { bench: 105, ohp: 67.5, squat: 85, deadlift: 140 };
 
@@ -33,16 +35,7 @@ const seedDecisions: DecisionEvent[] = (["bench", "ohp", "squat", "deadlift"] as
 }));
 
 async function seedOnboarded(): Promise<void> {
-  await upsertProgramVersion(seed);
-  await db.library.put({ programId: seed.id, addedAt: at(1, 8) });
-  await setInstanceState({
-    programId: seed.id,
-    programVersion: seed.version,
-    mode: "rolling",
-    anchor: {},
-    schemaVersion: 1,
-  });
-  for (const d of seedDecisions) await appendDecision(d);
+  await seedOnboardedHelper(seed, seedDecisions, at(1, 8));
 }
 
 /** dayOrdinal 완료 처리 재현 — rollingCyclePos가 그다음 날로 전진(TodayScreen.test.tsx와 동일 패턴). */
@@ -62,33 +55,6 @@ async function advancePast(dayOrdinal: number): Promise<void> {
 function sectionFor(container: HTMLElement, label: string): HTMLElement | null {
   const heading = Array.from(container.querySelectorAll("h3")).find((h) => h.textContent === label);
   return heading ? heading.closest("section") : null;
-}
-
-async function waitForWarmupSettled(): Promise<void> {
-  await waitFor(async () => {
-    const recs = await db.setRecords.toArray();
-    expect(recs.some((r) => r.setType === "warmup")).toBe(true);
-  });
-}
-
-/** T1 이외 슬롯 전부 완료(스킵 테스트에서 T1만 남기고 게이트를 채우기 위함) — TodayScreen.test.tsx의
- *  completeAllRows와 동일한 탭/자유입력 판별 로직에, 특정 section 제외 옵션만 추가. */
-async function completeAllRowsExcept(container: HTMLElement, excludeSection: HTMLElement | null): Promise<void> {
-  const rows = Array.from(container.querySelectorAll('[data-testid^="setrow-"]')) as HTMLElement[];
-  for (const row of rows) {
-    if (excludeSection && excludeSection.contains(row)) continue;
-    if (row.querySelector('[aria-label="완료됨"]')) continue;
-    const weightInput = row.querySelector('input[aria-label="무게 입력"]') as HTMLInputElement | null;
-    if (weightInput) {
-      const repsInput = row.querySelector('input[aria-label="렙 입력"]') as HTMLInputElement;
-      fireEvent.change(weightInput, { target: { value: "20" } });
-      fireEvent.change(repsInput, { target: { value: "10" } });
-      fireEvent.click(within(row).getByRole("button", { name: /완료|저장/ }));
-    } else {
-      fireEvent.click(row);
-    }
-    await waitFor(() => expect(row.querySelector('[aria-label="완료됨"]')).toBeTruthy());
-  }
 }
 
 const deadliftSlot: PlannedSlot = {
@@ -118,15 +84,7 @@ afterEach(() => {
 });
 
 beforeEach(async () => {
-  await Promise.all([
-    db.setRecords.clear(),
-    db.corrections.clear(),
-    db.decisions.clear(),
-    db.sessions.clear(),
-    db.programVersions.clear(),
-    db.instanceState.clear(),
-    db.library.clear(),
-  ]);
+  await resetDb();
   useProgramStore.setState(useProgramStore.getInitialState(), true);
   sessionStorage.clear();
 });
@@ -213,7 +171,7 @@ describe("ExerciseSwap", () => {
 
     expect(screen.queryByRole("button", { name: "세션 완료" })).not.toBeInTheDocument();
 
-    await completeAllRowsExcept(container, t1Section);
+    await completeAllRows(container, { exclude: t1Section });
 
     expect(await screen.findByRole("button", { name: "세션 완료" })).toBeInTheDocument();
   });

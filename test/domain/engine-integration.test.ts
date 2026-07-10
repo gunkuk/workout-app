@@ -1,16 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
 import { buildWorkoutPlan, type PlannedSet } from "../../src/domain/programEngine";
 import { foldState } from "../../src/domain/fold";
 import { weeklyAnalysis } from "../../src/domain/analytics";
 import { DEFAULT_PLATES, roundToStep, stepOf } from "../../src/domain/plates";
 import { programKey } from "../../src/domain/foldSupport";
-import type { ProgramDefinition, SetRecord, DecisionEvent, SessionCompleted } from "../../src/domain/types.ts";
+import type { SetRecord, DecisionEvent, SessionCompleted } from "../../src/domain/types.ts";
+import { loadSeedProgram } from "../helpers/seed";
 
 // Task 8 — nSuns 통합 오라클: buildWorkoutPlan(엔진) → SetRecord[] 기록 → foldState(fold) →
 // weeklyAnalysis(분석) 접합 경로를 시드 프로그램 하나로 전수 검증한다 (순수 테스트, 새 도메인 모듈 없음).
 
-const seed = JSON.parse(readFileSync("programs/nsuns-5day.json", "utf8")) as ProgramDefinition;
+const seed = loadSeedProgram();
 const programs = new Map([[programKey(seed.id, seed.version), seed]]);
 
 const TM = { bench: 105, ohp: 67.5, squat: 85, deadlift: 140 };

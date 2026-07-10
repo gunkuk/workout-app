@@ -1,19 +1,20 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { readFileSync } from "node:fs";
 import { db } from "../../src/storage/db";
-import { appendSet, appendDecision, appendSession, upsertProgramVersion, setInstanceState, loadFoldInput } from "../../src/storage/eventStore";
+import { appendSet, appendSession, upsertProgramVersion, loadFoldInput } from "../../src/storage/eventStore";
 import { useProgramStore } from "../../src/store/programStore";
 import { foldState } from "../../src/domain/fold";
 import { nextCyclePos } from "../../src/domain/cyclePos";
 import { buildWorkoutPlan, type PlannedSet } from "../../src/domain/programEngine";
 import { DEFAULT_PLATES } from "../../src/domain/plates";
-import type { ProgramDefinition, DecisionEvent, SessionCompleted, SetRecord } from "../../src/domain/types.ts";
+import type { DecisionEvent, SessionCompleted, SetRecord } from "../../src/domain/types.ts";
+import { resetDb } from "../helpers/db";
+import { loadSeedProgram, seedOnboarded as seedOnboardedHelper } from "../helpers/seed";
 
 // Task 3 — programStore(zustand): eventStore를 소비해 활성 프로그램·TM·오늘의 커서를 파생한다.
 // 실제 nSuns 시드(programs/nsuns-5day.json) + eventStore의 append* 함수로 온보딩 완료 상태를
 // fake-indexeddb 위에 그대로 재현해 검증한다 (rolling 모드만 — calendar UI는 Plan C2).
 
-const seed = JSON.parse(readFileSync("programs/nsuns-5day.json", "utf8")) as ProgramDefinition;
+const seed = loadSeedProgram();
 
 const TM = { bench: 105, ohp: 67.5, squat: 85, deadlift: 140 };
 
@@ -32,16 +33,7 @@ const seedDecisions: DecisionEvent[] = (["bench", "ohp", "squat", "deadlift"] as
 
 /** 온보딩 완료 상태 재현: programVersions + library + instanceState(rolling) + TM 시드 4개 결정 */
 async function seedOnboarded(): Promise<void> {
-  await upsertProgramVersion(seed);
-  await db.library.put({ programId: seed.id, addedAt: at(1, 8) });
-  await setInstanceState({
-    programId: seed.id,
-    programVersion: seed.version,
-    mode: "rolling",
-    anchor: {},
-    schemaVersion: 1,
-  });
-  for (const d of seedDecisions) await appendDecision(d);
+  await seedOnboardedHelper(seed, seedDecisions, at(1, 8));
 }
 
 function sessionCompleted(id: string, day: number, pos: { cycleIndex: number; week: number; dayOrdinal: number }): SessionCompleted {
@@ -87,15 +79,7 @@ function toSetRecords(
 }
 
 beforeEach(async () => {
-  await Promise.all([
-    db.setRecords.clear(),
-    db.corrections.clear(),
-    db.decisions.clear(),
-    db.sessions.clear(),
-    db.programVersions.clear(),
-    db.instanceState.clear(),
-    db.library.clear(),
-  ]);
+  await resetDb();
   useProgramStore.setState(useProgramStore.getInitialState(), true);
 });
 

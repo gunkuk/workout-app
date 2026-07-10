@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
 import { foldState } from "../../src/domain/fold";
 import { programKey } from "../../src/domain/foldSupport";
-import type { ProgramDefinition, SetRecord, DecisionEvent, SessionCompleted, FoldInput } from "../../src/domain/types.ts";
+import type { SetRecord, DecisionEvent, SessionCompleted, FoldInput } from "../../src/domain/types.ts";
+import { loadSeedProgram } from "../helpers/seed";
 
-const seed = JSON.parse(readFileSync("programs/nsuns-5day.json", "utf8")) as ProgramDefinition;
+const seed = loadSeedProgram();
 const programs = new Map([[programKey(seed.id, seed.version), seed]]);
 
 function at(day: number, hh = 10): string {

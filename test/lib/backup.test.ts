@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { db } from "../../src/storage/db";
 import {
   appendSet,
   appendCorrection,
@@ -21,6 +20,7 @@ import {
   type BackupSnapshot,
 } from "../../src/lib/backup";
 import type { SetRecord, ProgramDefinition } from "../../src/domain/types.ts";
+import { resetDb } from "../helpers/db";
 
 // Task 7(C2) — 백업 내보내기/가져오기. eventStore.test.ts와 동일 픽스처 패턴(fake-indexeddb,
 // beforeEach로 7개 테이블 clear). Web Share/다운로드/클립보드는 jsdom이 기본 구현하지 않으므로
@@ -69,18 +69,6 @@ function mockUA(ua: string): void {
   Object.defineProperty(navigator, "userAgent", { value: ua, configurable: true });
 }
 
-async function clearAllTables(): Promise<void> {
-  await Promise.all([
-    db.setRecords.clear(),
-    db.corrections.clear(),
-    db.decisions.clear(),
-    db.sessions.clear(),
-    db.programVersions.clear(),
-    db.instanceState.clear(),
-    db.library.clear(),
-  ]);
-}
-
 /** 왕복 테스트용 최소 전종류 데이터 1세트(세트/정정/결정/세션/프로그램/라이브러리/인스턴스상태). */
 async function seedFullSnapshotData(): Promise<void> {
   await appendSet(setRec("set1"));
@@ -121,7 +109,7 @@ async function seedFullSnapshotData(): Promise<void> {
 }
 
 beforeEach(async () => {
-  await clearAllTables();
+  await resetDb();
   mockUA(ORIGINAL_UA);
 });
 
@@ -143,7 +131,7 @@ describe("backup", () => {
     const snapshot = await exportSnapshot();
     expect(snapshot.schemaVersion).toBe(1);
 
-    await clearAllTables();
+    await resetDb();
     expect((await loadFoldInput()).sets).toHaveLength(0);
 
     await importSnapshot(snapshot);

@@ -1,20 +1,22 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, within, cleanup } from "@testing-library/react";
-import { readFileSync } from "node:fs";
 import { db } from "../../src/storage/db";
-import { appendSet, appendSession, appendDecision, upsertProgramVersion, setInstanceState } from "../../src/storage/eventStore";
+import { appendSet, appendSession } from "../../src/storage/eventStore";
 import { useProgramStore } from "../../src/store/programStore";
 import { TodayScreen, sessionIdFor } from "../../src/screens/TodayScreen";
 import App from "../../src/App";
-import type { ProgramDefinition, DecisionEvent, SetRecord, CyclePos } from "../../src/domain/types.ts";
+import type { DecisionEvent, SetRecord, CyclePos } from "../../src/domain/types.ts";
+import { resetDb } from "../helpers/db";
+import { loadSeedProgram, seedOnboarded as seedOnboardedHelper } from "../helpers/seed";
+import { completeAllRows, waitForWarmupSettled } from "../helpers/todayScreenInteractions";
 
 // Task 4 — SetRow + TodayScreen: 체크오프·즉시커밋·정정·needsInit.
 // 실제 nSuns 시드 + eventStore + programStore(zustand, 실제 — mock 아님)로 온보딩 완료 상태를
 // fake-indexeddb 위에 재현하고, TodayScreen을 실제 렌더해 DOM 상호작용 → DB 반영까지 통합 검증한다
 // (programStore.test.ts와 동일한 픽스처 패턴).
 
-const seed = JSON.parse(readFileSync("programs/nsuns-5day.json", "utf8")) as ProgramDefinition;
+const seed = loadSeedProgram();
 
 const TM = { bench: 105, ohp: 67.5, squat: 85, deadlift: 140 };
 
@@ -38,16 +40,7 @@ const seedDecisions: DecisionEvent[] = (["bench", "ohp", "squat", "deadlift"] as
  * 모든 day의 악세사리 슬롯이 needsInit이 된다. 두 UX를 별도 픽스처 조작 없이 실제 시드 데이터로 검증한다.
  */
 async function seedOnboarded(): Promise<void> {
-  await upsertProgramVersion(seed);
-  await db.library.put({ programId: seed.id, addedAt: at(1, 8) });
-  await setInstanceState({
-    programId: seed.id,
-    programVersion: seed.version,
-    mode: "rolling",
-    anchor: {},
-    schemaVersion: 1,
-  });
-  for (const d of seedDecisions) await appendDecision(d);
+  await seedOnboardedHelper(seed, seedDecisions, at(1, 8));
 }
 
 /** rollingCyclePos를 dayOrdinal 다음 날로 전진시키는 가짜 완료 세션 — 그 날의 실제 SetRecord는 없으므로
@@ -74,33 +67,6 @@ function rowsForLabel(container: HTMLElement, label: string): HTMLElement[] {
   return Array.from(section.querySelectorAll('[data-testid^="setrow-"]'));
 }
 
-/** 렌더된 모든 미완료 setrow를 순서대로 완료 처리한다 — 일반 행은 탭, 자유입력(needsInit) 행은
- *  값 입력 후 제출 버튼 클릭. 이미 완료(aria-label="완료됨")된 행은 건너뛴다. */
-async function completeAllRows(container: HTMLElement): Promise<void> {
-  const rows = Array.from(container.querySelectorAll('[data-testid^="setrow-"]')) as HTMLElement[];
-  for (const row of rows) {
-    if (row.querySelector('[aria-label="완료됨"]')) continue;
-    const weightInput = row.querySelector('input[aria-label="무게 입력"]') as HTMLInputElement | null;
-    if (weightInput) {
-      const repsInput = row.querySelector('input[aria-label="렙 입력"]') as HTMLInputElement;
-      fireEvent.change(weightInput, { target: { value: "20" } });
-      fireEvent.change(repsInput, { target: { value: "10" } });
-      fireEvent.click(within(row).getByRole("button", { name: /완료|저장/ }));
-    } else {
-      fireEvent.click(row);
-    }
-    await waitFor(() => expect(row.querySelector('[aria-label="완료됨"]')).toBeTruthy());
-  }
-}
-
-/** 마운트 시 워밍업 자동기록(비동기)이 끝날 때까지 대기 — 이후 상호작용에서 act 경고 없이 안정적으로 동작 */
-async function waitForWarmupSettled(): Promise<void> {
-  await waitFor(async () => {
-    const recs = await db.setRecords.toArray();
-    expect(recs.some((r) => r.setType === "warmup")).toBe(true);
-  });
-}
-
 afterEach(() => {
   // 세션완료 → refreshAfterWrite로 todayPlan이 바뀌면 복원/워밍업 effect가 재발화하는 케이스가 있다.
   // 다음 테스트로 넘어가기 전(또는 마지막 테스트의 경우 파일 teardown 전) 반드시 언마운트해
@@ -110,15 +76,7 @@ afterEach(() => {
 });
 
 beforeEach(async () => {
-  await Promise.all([
-    db.setRecords.clear(),
-    db.corrections.clear(),
-    db.decisions.clear(),
-    db.sessions.clear(),
-    db.programVersions.clear(),
-    db.instanceState.clear(),
-    db.library.clear(),
-  ]);
+  await resetDb();
   useProgramStore.setState(useProgramStore.getInitialState(), true);
 });
 
@@ -382,21 +340,7 @@ describe("TodayScreen", () => {
     expect(screen.queryByRole("button", { name: "세션 완료" })).not.toBeInTheDocument();
 
     // 스킵된 T1 슬롯을 제외한 나머지(T2 + accessory) 전부 완료.
-    const rows = Array.from(container.querySelectorAll('[data-testid^="setrow-"]')) as HTMLElement[];
-    for (const row of rows) {
-      if (t1Section.contains(row)) continue;
-      if (row.querySelector('[aria-label="완료됨"]')) continue;
-      const weightInput = row.querySelector('input[aria-label="무게 입력"]') as HTMLInputElement | null;
-      if (weightInput) {
-        const repsInput = row.querySelector('input[aria-label="렙 입력"]') as HTMLInputElement;
-        fireEvent.change(weightInput, { target: { value: "20" } });
-        fireEvent.change(repsInput, { target: { value: "10" } });
-        fireEvent.click(within(row).getByRole("button", { name: /완료|저장/ }));
-      } else {
-        fireEvent.click(row);
-      }
-      await waitFor(() => expect(row.querySelector('[aria-label="완료됨"]')).toBeTruthy());
-    }
+    await completeAllRows(container, { exclude: t1Section });
 
     expect(await screen.findByRole("button", { name: "세션 완료" })).toBeInTheDocument();
   });
