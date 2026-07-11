@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { loadEventLog, listExternalSessions, type ExternalSessionRecord } from "../store/queries";
+import { loadEventLog, listExternalSessions, loadSessionNote, type ExternalSessionRecord } from "../store/queries";
 import { sortByAtId } from "../domain/order";
 import { applyCorrections } from "../domain/corrections";
 import { tmHistory, e1rmSeries } from "../domain/e1rm";
@@ -45,6 +45,8 @@ export function HistoryScreen() {
   const [foldInput, setFoldInput] = useState<FoldInput | null>(null);
   const [externalSessions, setExternalSessions] = useState<ExternalSessionRecord[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  /** sessionId -> 세션 코멘트(UI5 T2) — 펼칠 때 lazy 조회해 채운다("" = 조회했지만 없음). */
+  const [noteText, setNoteText] = useState<Record<string, string>>({});
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
@@ -190,7 +192,15 @@ export function HistoryScreen() {
                   tabIndex={0}
                   className="session-row"
                   title={session.at}
-                  onClick={() => setExpandedId(isExpanded ? null : session.id)}
+                  onClick={() => {
+                    const next = isExpanded ? null : session.id;
+                    setExpandedId(next);
+                    if (next && noteText[session.sessionId] === undefined) {
+                      loadSessionNote(session.sessionId).then((note) => {
+                        setNoteText((prev) => ({ ...prev, [session.sessionId]: note?.note ?? "" }));
+                      });
+                    }
+                  }}
                 >
                   {formatKoreanDate(session.at)} — {session.programId} — {session.status === "completed" ? "완료" : "스킵"}
                 </div>
@@ -202,6 +212,11 @@ export function HistoryScreen() {
                       </li>
                     ))}
                   </ul>
+                )}
+                {isExpanded && noteText[session.sessionId] && (
+                  <p className="session-note" data-testid={`session-note-${session.id}`}>
+                    {noteText[session.sessionId]}
+                  </p>
                 )}
               </li>
             );

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useProgramStore } from "../../store/programStore";
-import { loadEventLog } from "../../store/queries";
+import { loadEventLog, type SessionNote } from "../../store/queries";
 import { nowISO } from "../../lib/time";
 import { applyCorrections } from "../../domain/corrections";
 import { stepOf, DEFAULT_PLATES } from "../../domain/plates";
@@ -31,7 +31,8 @@ export type UseTodaySessionResult = {
     swappedFrom?: string,
   ) => void;
   handleCorrect: (id: string, weight: number, reps: number) => void;
-  handleSessionComplete: () => Promise<void>;
+  /** note가 non-empty면 세션 완료와 함께 SessionNote도 저장(UI5 T2). */
+  handleSessionComplete: (note?: string) => Promise<void>;
   handleSkip: (slotId: string) => void;
   handleUnskip: (slotId: string) => void;
   handlePainDay: (originalSlot: PlannedSlot) => void;
@@ -53,6 +54,7 @@ export function useTodaySession(onSessionComplete?: () => void): UseTodaySession
   const recordSet = useProgramStore((s) => s.recordSet);
   const recordCorrection = useProgramStore((s) => s.recordCorrection);
   const completeSession = useProgramStore((s) => s.completeSession);
+  const addSessionNote = useProgramStore((s) => s.addSessionNote);
 
   const [recorded, setRecorded] = useState<Record<string, SetRecord>>({});
   const [error, setError] = useState<string | null>(null);
@@ -205,30 +207,44 @@ export function useTodaySession(onSessionComplete?: () => void): UseTodaySession
     [recordCorrection],
   );
 
-  const handleSessionComplete = useCallback(async () => {
-    if (!sessionId || !todayPos || !activeProgram) return;
-    setCompleting(true);
-    setError(null);
-    const rec: SessionCompleted = {
-      id: crypto.randomUUID(),
-      // 필수: SetRecord들과 동일한 결정론적 sessionId — fold의 judgingSetsForSlot 조인 계약.
-      sessionId,
-      at: nowISO(),
-      cyclePos: todayPos,
-      status: "completed",
-      programId: activeProgram.id,
-      programVersion: activeProgram.version,
-      schemaVersion: 1,
-    };
-    try {
-      await completeSession(rec);
-      onSessionComplete?.();
-    } catch {
-      setError("세션 완료 저장 실패 — 다시 시도해주세요.");
-    } finally {
-      setCompleting(false);
-    }
-  }, [sessionId, todayPos, activeProgram, completeSession, onSessionComplete]);
+  const handleSessionComplete = useCallback(
+    async (note?: string) => {
+      if (!sessionId || !todayPos || !activeProgram) return;
+      setCompleting(true);
+      setError(null);
+      const rec: SessionCompleted = {
+        id: crypto.randomUUID(),
+        // 필수: SetRecord들과 동일한 결정론적 sessionId — fold의 judgingSetsForSlot 조인 계약.
+        sessionId,
+        at: nowISO(),
+        cyclePos: todayPos,
+        status: "completed",
+        programId: activeProgram.id,
+        programVersion: activeProgram.version,
+        schemaVersion: 1,
+      };
+      try {
+        await completeSession(rec);
+        const trimmed = note?.trim();
+        if (trimmed) {
+          const noteRec: SessionNote = {
+            id: crypto.randomUUID(),
+            sessionId,
+            note: trimmed,
+            at: nowISO(),
+            schemaVersion: 1,
+          };
+          await addSessionNote(noteRec);
+        }
+        onSessionComplete?.();
+      } catch {
+        setError("세션 완료 저장 실패 — 다시 시도해주세요.");
+      } finally {
+        setCompleting(false);
+      }
+    },
+    [sessionId, todayPos, activeProgram, completeSession, addSessionNote, onSessionComplete],
+  );
 
   const isSkipped = useCallback((slotId: string) => skippedSlotIds[slotId] === true, [skippedSlotIds]);
 

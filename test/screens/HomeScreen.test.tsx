@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
-import { appendSession } from "../../src/storage/eventStore";
+import { db } from "../../src/storage/db";
+import { appendSession, appendSet } from "../../src/storage/eventStore";
 import { useProgramStore } from "../../src/store/programStore";
 import { HomeScreen } from "../../src/screens/HomeScreen";
 import { resetDb } from "../helpers/db";
@@ -114,5 +115,91 @@ describe("HomeScreen", () => {
     render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByText(`이번 주 1/${totalDays} 완료`)).toBeInTheDocument());
+  });
+
+  // UI5 T2 — 체성분/부상·수행능력/출석 스트립 카드 3종 추가 검증.
+
+  it("⑦ 체성분 빠른입력 → 저장 → DB 반영 + 입력값 초기화, 2건째부터 듀얼차트+범례 노출", async () => {
+    await onboard();
+    render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+    await screen.findByText("기록이 쌓이면 추이가 표시됩니다");
+
+    const weightInputEl = screen.getByLabelText("몸무게 입력") as HTMLInputElement;
+    const bodyFatInputEl = screen.getByLabelText("체지방 입력") as HTMLInputElement;
+
+    fireEvent.change(weightInputEl, { target: { value: "80" } });
+    fireEvent.click(screen.getByRole("button", { name: "기록" }));
+
+    await waitFor(async () => expect(await db.bodyMetrics.count()).toBe(1));
+    await waitFor(() => expect(weightInputEl.value).toBe(""));
+
+    fireEvent.change(weightInputEl, { target: { value: "79.5" } });
+    fireEvent.change(bodyFatInputEl, { target: { value: "17.5" } });
+    fireEvent.click(screen.getByRole("button", { name: "기록" }));
+
+    await waitFor(async () => expect(await db.bodyMetrics.count()).toBe(2));
+    const legend = await screen.findByTestId("linechart-legend");
+    expect(legend).toHaveTextContent("몸무게 79.5");
+    expect(legend).toHaveTextContent("체지방 17.5");
+  });
+
+  it("⑧ 부상 기록 추가 → 칩 표시(n일째) → 탭+confirm → resolveInjury 반영, 칩 사라짐", async () => {
+    await onboard();
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+    await screen.findByText("현재 부상 없음");
+
+    fireEvent.click(screen.getByRole("button", { name: "+ 부상 기록" }));
+    fireEvent.change(screen.getByLabelText("부상 부위"), { target: { value: "왼쪽 어깨" } });
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
+
+    const chip = await screen.findByRole("button", { name: /왼쪽 어깨 · \d+일째/ });
+    expect(chip).toBeInTheDocument();
+
+    fireEvent.click(chip);
+    await waitFor(() => expect(screen.queryByRole("button", { name: /왼쪽 어깨/ })).not.toBeInTheDocument());
+    await screen.findByText("현재 부상 없음");
+
+    confirmSpy.mockRestore();
+  });
+
+  it("⑨ 출석 스트립 — complete/partial/none 3종 셀 상태 렌더(이번 주 목/금/토)", async () => {
+    await onboard();
+    const todayPos = useProgramStore.getState().todayPos!;
+    // 목(2026-07-09): 완료 세션 → complete. 금(2026-07-10): 세트기록만(완료 세션 없음) → partial.
+    // 토(2026-07-11, 오늘): 아무 기록 없음 → none.
+    await appendSession({
+      id: "att-complete",
+      sessionId: "att-complete-session",
+      at: at(9),
+      cyclePos: todayPos,
+      status: "completed",
+      programId: seed.id,
+      programVersion: seed.version,
+      schemaVersion: 1,
+    });
+    await appendSet({
+      id: "att-partial-set",
+      sessionId: "att-partial-session",
+      exerciseId: "bench",
+      targetWeight: 100,
+      targetReps: 5,
+      actualWeight: 100,
+      actualReps: 5,
+      completedAt: at(10),
+      schemaVersion: 1,
+    });
+
+    render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+
+    const completeCell = await screen.findByTestId("attendance-cell-2-7"); // 목, 이번 주
+    const partialCell = screen.getByTestId("attendance-cell-3-7"); // 금, 이번 주
+    const noneCell = screen.getByTestId("attendance-cell-4-7"); // 토(오늘), 이번 주
+
+    expect(completeCell).toHaveClass("is-complete");
+    expect(partialCell).toHaveClass("is-partial");
+    expect(partialCell).not.toHaveClass("is-complete");
+    expect(noneCell).not.toHaveClass("is-complete");
+    expect(noneCell).not.toHaveClass("is-partial");
   });
 });

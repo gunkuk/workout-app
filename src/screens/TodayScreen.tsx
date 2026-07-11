@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useProgramStore } from "../store/programStore";
 import { SetRow } from "../components/SetRow";
 import { ProposalCard } from "../components/ProposalCard";
@@ -43,6 +44,9 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
     wakeLockNotice,
   } = useTodaySession(onSessionComplete);
 
+  // 세션 코멘트(UI5 T2) — 전부 완료(allWorkSetsComplete)됐을 때만 노출되는 1줄 입력, 완료 버튼과 함께 제출.
+  const [note, setNote] = useState("");
+
   if (restDay === "rest") {
     return <div className="loading-state">오늘은 휴식일입니다</div>;
   }
@@ -71,9 +75,24 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
       <div className="today-sticky-header">
         <h2 className="day-header">{todayPlan.dayName}</h2>
         {allWorkSetsComplete ? (
-          <button type="button" className="btn-complete-session" onClick={handleSessionComplete} disabled={completing}>
-            세션 완료
-          </button>
+          <div className="session-complete-row">
+            <input
+              aria-label="세션 코멘트"
+              type="text"
+              className="session-note-input"
+              placeholder="세션 코멘트"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+            <button
+              type="button"
+              className="btn-complete-session"
+              onClick={() => handleSessionComplete(note)}
+              disabled={completing}
+            >
+              세션 완료
+            </button>
+          </div>
         ) : (
           <span className="today-progress">
             {doneWork}/{totalWork}

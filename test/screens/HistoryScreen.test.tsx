@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, within, cleanup } from "@testing-library/react";
 import { db } from "../../src/storage/db";
-import { appendSession, appendSet, appendDecision } from "../../src/storage/eventStore";
+import { appendSession, appendSet, appendDecision, upsertSessionNote } from "../../src/storage/eventStore";
 import { HistoryScreen } from "../../src/screens/HistoryScreen";
 import * as queries from "../../src/store/queries";
 import type { SessionCompleted, SetRecord, DecisionEvent } from "../../src/domain/types.ts";
@@ -57,7 +57,13 @@ afterEach(() => {
 });
 
 beforeEach(async () => {
-  await Promise.all([db.setRecords.clear(), db.sessions.clear(), db.decisions.clear(), db.corrections.clear()]);
+  await Promise.all([
+    db.setRecords.clear(),
+    db.sessions.clear(),
+    db.decisions.clear(),
+    db.corrections.clear(),
+    db.sessionNotes.clear(),
+  ]);
 });
 
 describe("HistoryScreen", () => {
@@ -217,5 +223,32 @@ describe("HistoryScreen", () => {
     const details = await screen.findByTestId("session-sets-ext1");
     expect(within(details).getByText(/버피/)).toBeInTheDocument();
     expect(within(details).getByText(/로잉/)).toBeInTheDocument();
+  });
+
+  it("⑩ 세션 코멘트(UI5 T2) — 펼치면 loadSessionNote로 조회해 italic 안내로 표시", async () => {
+    await appendSession(session("s1", { sessionId: "sess1" }));
+    await upsertSessionNote({
+      id: "note1",
+      sessionId: "sess1",
+      note: "오늘 어깨가 조금 불편했다",
+      at: "2026-07-10T09:30:00Z",
+      schemaVersion: 1,
+    });
+
+    render(<HistoryScreen />);
+    const row = await screen.findByTestId("session-row-s1");
+    expect(screen.queryByTestId("session-note-s1")).not.toBeInTheDocument();
+
+    fireEvent.click(row);
+    expect(await screen.findByTestId("session-note-s1")).toHaveTextContent("오늘 어깨가 조금 불편했다");
+  });
+
+  it("⑪ 세션 코멘트 없음 → 펼쳐도 note 요소 렌더 안 함", async () => {
+    await appendSession(session("s1", { sessionId: "sess1" }));
+    render(<HistoryScreen />);
+    const row = await screen.findByTestId("session-row-s1");
+    fireEvent.click(row);
+    await screen.findByTestId("session-sets-s1");
+    expect(screen.queryByTestId("session-note-s1")).not.toBeInTheDocument();
   });
 });

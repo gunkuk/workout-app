@@ -373,4 +373,52 @@ describe("TodayScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "분석" }));
     await waitFor(() => expect(window.location.hash).toBe("#/analytics"));
   });
+
+  // UI5 T2 — 세션 코멘트: 전부 완료 후 노출되는 입력에 값을 채우고 "세션 완료" 클릭 시 SessionNote로 저장.
+
+  it("⑬ 세션 코멘트 입력 후 완료 → sessionNotes에 저장(sessionId 조인 검증)", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+    const { container } = render(<TodayScreen />);
+    await waitForWarmupSettled();
+
+    await completeAllRows(container);
+
+    const noteInput = await screen.findByLabelText("세션 코멘트");
+    fireEvent.change(noteInput, { target: { value: "오늘 어깨가 뻐근했다" } });
+
+    const completeBtn = screen.getByRole("button", { name: "세션 완료" });
+    fireEvent.click(completeBtn);
+
+    await waitFor(async () => {
+      const sessions = await db.sessions.toArray();
+      expect(sessions).toHaveLength(1);
+    });
+    const sessions = await db.sessions.toArray();
+    const sc = sessions[0]!;
+
+    await waitFor(async () => {
+      const notes = await db.sessionNotes.toArray();
+      expect(notes).toHaveLength(1);
+      expect(notes[0]!.sessionId).toBe(sc.sessionId);
+      expect(notes[0]!.note).toBe("오늘 어깨가 뻐근했다");
+    });
+  });
+
+  it("⑭ 세션 코멘트 미입력 → sessionNotes에 아무것도 저장 안 함", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+    const { container } = render(<TodayScreen />);
+    await waitForWarmupSettled();
+
+    await completeAllRows(container);
+    const completeBtn = await screen.findByRole("button", { name: "세션 완료" });
+    fireEvent.click(completeBtn);
+
+    await waitFor(async () => {
+      const sessions = await db.sessions.toArray();
+      expect(sessions).toHaveLength(1);
+    });
+    expect(await db.sessionNotes.toArray()).toHaveLength(0);
+  });
 });

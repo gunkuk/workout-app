@@ -12,8 +12,13 @@ import {
   addToLibrary,
   setInstanceState,
   appendExternalSession,
+  appendBodyMetric,
+  addInjury as addInjuryRow,
+  resolveInjury as resolveInjuryRow,
+  upsertSessionNote,
 } from "../storage/eventStore";
 import type { ExternalSessionRecord } from "../storage/db";
+import type { BodyMetric, InjuryLog, SessionNote } from "../storage/trackingTypes";
 import { foldState } from "../domain/fold";
 import { rollingCyclePos, calendarCyclePos } from "../domain/cyclePos";
 import { buildWorkoutPlan, type WorkoutPlan } from "../domain/programEngine";
@@ -66,6 +71,14 @@ export type ProgramStoreState = {
   /** 외부(크로스핏 등) 세션 기록 후 재fold(Stage1-C3 T4) — programStore 파생 상태엔 직접 영향 없지만
    * 다른 mutation과 동일하게 기록 후 load()로 일관 새로고침한다. */
   recordExternalSession(rec: ExternalSessionRecord): Promise<void>;
+  /** 체성분 기록 추가(UI5 T2) — fold 입력 밖(§설계원칙 동결)이라 재fold 불필요, eventStore 얇은 위임. */
+  addBodyMetric(rec: BodyMetric): Promise<void>;
+  /** 부상 기록 추가(UI5 T2) — fold 입력 밖, 재fold 불필요. */
+  addInjury(rec: InjuryLog): Promise<void>;
+  /** 부상 해소 처리(UI5 T2) — resolvedAt만 갱신, fold 입력 밖. */
+  resolveInjury(id: string, resolvedAt: string): Promise<void>;
+  /** 세션 코멘트 upsert(UI5 T2) — fold 입력 밖. */
+  addSessionNote(rec: SessionNote): Promise<void>;
 };
 
 const EMPTY_STATE = {
@@ -216,5 +229,21 @@ export const useProgramStore = create<ProgramStoreState>()((set, get) => ({
   async recordExternalSession(rec) {
     await appendExternalSession(rec);
     await get().load();
+  },
+
+  async addBodyMetric(rec) {
+    await appendBodyMetric(rec);
+  },
+
+  async addInjury(rec) {
+    await addInjuryRow(rec);
+  },
+
+  async resolveInjury(id, resolvedAt) {
+    await resolveInjuryRow(id, resolvedAt);
+  },
+
+  async addSessionNote(rec) {
+    await upsertSessionNote(rec);
   },
 }));
