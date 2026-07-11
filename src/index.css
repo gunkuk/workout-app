@@ -820,3 +820,7 @@ input[type="file"]::file-selector-button {
   font-weight: bold;
   margin: 0 0 16px;
 }
+
+
+/* 버튼 라벨 세로 쪼개짐 방지(VLM 검수 r3 — 홈 체성분 '기록' 버튼) */
+button { white-space: nowrap; }
