@@ -100,3 +100,10 @@ PACT 최종 보고 작성됨: decision_tree/actions/2026-07-05-001_stage1-autoru
 판정: 블로킹 결함 0. wakeLock 레이스 수정 반영 확인, substitutedFrom 배선·revoke 복원·sessionId 조인 계약 전부 건전.
 무해 관찰 2건(기록만): (a) 스킵된 슬롯에도 워밍업 자동기록됨 — setType warmup은 통계 제외라 실해 없음 (b) sessionId가 null로 바뀌는 모드 전환 시 recorded 로컬 상태 잔존 — restDay 분기가 렌더를 막아 무해.
 Stage 1 종결 선언: whole-branch 판정 완료(태스크별 51회 리뷰 + 감사 2회 + 본 seam 리뷰로 갈음).
+
+=== UI3~6 (2026-07-11, Boostcamp IA + 콘텐츠 + 크로스핏) ===
+UI3: 홈 대시보드(활성프로그램·달성률 N/M·%·오늘 미리보기+시작) + 하단탭 재편(홈|프로그램|히스토리|분석), 프로그램 라이브러리를 설정→탭 승격. 264 tests.
+UI4: 설정 앱 사용법 섹션 + 프로그램 탭 설명(핵심원칙·증량·구성원리) 접기카드, description은 seed JSON 데이터. 266 tests.
+연구: nSuns 원저자 원문 조사(93에이전트 deep-research) — "왜 T2 저중량 고볼륨" rationale은 창시자 원문 부재(3-0), 증량수치만 커뮤니티 표준으로 일관. 앱 설명은 표준 S&C 해석임을 사용자에 고지(출처 라벨링 여부 사용자 결정 대기).
+UI6: 크로스핏·자유 운동 기록 — ExternalSessionRecord(저장타입, 도메인 밖) 확장 optional {label,exercises[],cardio[]}, FreeWorkoutScreen(운동명/무게/횟수/세트 + 유산소 종류/시간/거리 + 부위태그), 홈 진입버튼, 히스토리 표시, 백업 자동왕복. 290 tests, 4게이트 clean, 배포.
+이월 UI 폴리시(백로그): FreeWorkoutScreen 입력필드 폭 좁음(운동명 클리핑) — 2줄 레이아웃 검토. 프로그램 설명 출처 라벨링(사용자 결정 대기).
