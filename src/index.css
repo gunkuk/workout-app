@@ -824,3 +824,104 @@ input[type="file"]::file-selector-button {
 
 /* 버튼 라벨 세로 쪼개짐 방지(VLM 검수 r3 — 홈 체성분 '기록' 버튼) */
 button { white-space: nowrap; }
+
+/* ---- UI7 ---- */
+/* Boostcamp풍 홈 대시보드 2컬럼 재배치 — 좌상 출석 / 좌하 몸무게 / 우측(tall, 2행 span) 수행능력. */
+
+/* grid-template-areas로 명시 배치 — DOM 순서(출석→몸무게→수행능력, 스크린리더 낭독 순서 유지)와
+   무관하게 우측 카드를 두 행에 걸쳐 배치한다(단순 grid-row:span 2 auto-placement는 3번째 DOM
+   아이템을 좌하가 아닌 2행 1열에 밀어넣어 레이아웃이 깨짐 — 명시 영역 지정으로 회피). */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "attendance performance"
+    "weight performance";
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.dashboard-cell {
+  margin-bottom: 0;
+  padding: 12px;
+}
+
+.dashboard-cell-attendance {
+  grid-area: attendance;
+}
+
+.dashboard-cell-weight {
+  grid-area: weight;
+}
+
+.dashboard-cell-performance {
+  grid-area: performance;
+}
+
+.dashboard-stat-big {
+  color: var(--gold);
+  font-weight: 800;
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.dashboard-stat-teal {
+  color: var(--teal);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 2px 0 0;
+}
+
+.attendance-strip-compact {
+  gap: 3px;
+}
+
+.attendance-strip-compact .attendance-cell {
+  width: 10px;
+  height: 10px;
+}
+
+.dashboard-quick-input {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.dashboard-quick-input .session-note-input {
+  width: 100%;
+}
+
+.lift-summary-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.lift-summary-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.lift-summary-list > .lift-summary-row:last-child {
+  border-bottom: none;
+}
+
+.lift-summary-name {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.lift-summary-est {
+  color: var(--gold);
+}
+
+.lift-summary-measured {
+  color: var(--teal);
+  margin-left: auto;
+}
