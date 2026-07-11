@@ -51,6 +51,16 @@ afterEach(() => {
   cleanup();
 });
 
+describe("SettingsScreen — 앱 설명 · 사용법", () => {
+  it("앱 설명 · 사용법 섹션이 렌더된다", async () => {
+    await seedOnboarded();
+    render(<SettingsScreen />);
+
+    expect(await screen.findByRole("heading", { name: "앱 설명 · 사용법" })).toBeInTheDocument();
+    expect(screen.getByText(/오프라인 우선 운동 추적기/)).toBeInTheDocument();
+  });
+});
+
 describe("SettingsScreen — TM 수동 편집(Stage1-C3 T4)", () => {
   it("① TM 수동 편집 → fold 반영(programStore.tm 변경)", async () => {
     await seedOnboarded();
