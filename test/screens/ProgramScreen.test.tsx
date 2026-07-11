@@ -94,7 +94,7 @@ describe("ProgramScreen", () => {
 
   // Stage1-UI8 — 자동 생성 루틴 표(RoutineTable). kk4day-seed.test.mjs와 동일한 readFileSync 패턴으로
   // kk-4day(2주 사이클, 화요일만 주차별 상이)를 로드해 병합·분기 로직을 검증한다.
-  it("⑦ 루틴 표 — kk-4day: 화요일은 주차별로 분기되고 월요일은 병합된다", async () => {
+  it("⑦ 루틴 표 — kk-4day(7주 메조): 화요일은 구성별 그룹(볼륨/헤비/디로드), 월요일은 1~6주차 병합+디로드 분리", async () => {
     const kk4day = JSON.parse(readFileSync("programs/kk-4day.json", "utf8")) as ProgramDefinition;
     const kk4dayDecisions: DecisionEvent[] = (["bench", "ohp", "squat", "deadlift"] as const).map((exerciseId) => ({
       id: `seed-${exerciseId}`,
@@ -114,9 +114,13 @@ describe("ProgramScreen", () => {
 
     expect(screen.getAllByText(/티바 로우/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/데드리프트/).length).toBeGreaterThan(0);
-    expect(screen.getByText("화 (1주차)")).toBeInTheDocument();
-    expect(screen.getByText("화 (2주차)")).toBeInTheDocument();
-    expect(screen.getAllByText("월")).toHaveLength(1);
+    // 7주 메조: 화 = 볼륨(1·3·5주차) / 헤비(2·4·6주차) / 디로드(7주차) 3그룹
+    expect(screen.getByText("화 (1·3·5주차)")).toBeInTheDocument();
+    expect(screen.getByText("화 (2·4·6주차)")).toBeInTheDocument();
+    expect(screen.getByText("화 (7주차)")).toBeInTheDocument();
+    // 월 = 누적 6주 동일 구성 병합 + 디로드 주 분리
+    expect(screen.getByText("월 (1~6주차)")).toBeInTheDocument();
+    expect(screen.getByText("월 (7주차)")).toBeInTheDocument();
   });
 
   it("⑧ 루틴 표 — nsuns-5day(단일 주): 주차 접미사 없이 렌더된다", async () => {

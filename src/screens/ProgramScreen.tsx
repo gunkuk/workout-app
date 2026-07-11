@@ -37,10 +37,18 @@ function DescriptionText({ text }: { text: string }) {
 
 type RoutineRow = { key: string; label: string; slots: SlotSpec[] };
 
+/** 1-based 주차 목록을 사람이 읽는 라벨로: 연속이면 "1~6주차", 아니면 "1·3·5주차". */
+function weekListLabel(weekNums: number[]): string {
+  const isContiguous = weekNums.every((w, i) => i === 0 || w === weekNums[i - 1]! + 1);
+  if (weekNums.length > 2 && isContiguous) return `${weekNums[0]}~${weekNums[weekNums.length - 1]}주차`;
+  return `${weekNums.join("·")}주차`;
+}
+
 /**
- * program.weeks에서 요일(ordinal)별 행을 만든다 — 같은 ordinal의 날이 모든 주에서 구조적으로
- * 동일(JSON.stringify(slots) 동일)하면 한 행으로 병합(예: "월"), 주마다 다르면(예: kk-4day의
- * 화 — 데드 볼륨↔헤비) 주차별로 한 행씩 쪼개 "화 (1주차)"처럼 라벨링한다. 손으로 쓴 텍스트가 아니라
+ * program.weeks에서 요일(ordinal)별 행을 만든다 — 같은 ordinal의 날을 **구성(JSON.stringify(slots))별로
+ * 그룹핑**한다: 모든 주에서 동일하면 한 행("월"), 구성이 갈리면 같은 구성의 주들을 묶어
+ * "화 (1·3·5주차)" / "화 (2·4·6주차)" / "화 (7주차)"처럼 라벨링(7주 메조사이클에서 표가 주별로
+ * 폭발하지 않게 — UI9에서 주별 분리 방식을 그룹핑으로 업그레이드). 손으로 쓴 텍스트가 아니라
  * 실제 프로그램 정의에서 매번 다시 계산하므로 프로그램이 바뀌어도 표가 항상 실제 루틴과 일치한다.
  */
 function buildRoutineRows(program: ProgramDefinition): RoutineRow[] {
@@ -49,21 +57,30 @@ function buildRoutineRows(program: ProgramDefinition): RoutineRow[] {
 
   const rows: RoutineRow[] = [];
   for (const ordinal of ordinals) {
-    const daysAtOrdinal = weeks
-      .map((w) => w.days.find((d) => d.ordinal === ordinal))
-      .filter((d): d is DaySpec => d !== undefined);
-    const first = daysAtOrdinal[0];
-    if (!first) continue;
-    const identicalAcrossWeeks = daysAtOrdinal.every((d) => JSON.stringify(d.slots) === JSON.stringify(first.slots));
+    const daysWithWeek = weeks
+      .map((w, weekIdx) => ({ day: w.days.find((d) => d.ordinal === ordinal), weekIdx }))
+      .filter((e): e is { day: DaySpec; weekIdx: number } => e.day !== undefined);
+    if (daysWithWeek.length === 0) continue;
 
-    if (identicalAcrossWeeks) {
-      rows.push({ key: `${ordinal}`, label: first.weekdayHint ?? first.name, slots: first.slots });
+    // 구성별 그룹핑 (등장 순서 유지)
+    const groups = new Map<string, { day: DaySpec; weekNums: number[] }>();
+    for (const { day, weekIdx } of daysWithWeek) {
+      const key = JSON.stringify(day.slots);
+      const g = groups.get(key);
+      if (g) g.weekNums.push(weekIdx + 1);
+      else groups.set(key, { day, weekNums: [weekIdx + 1] });
+    }
+
+    const groupList = [...groups.values()];
+    if (groupList.length === 1) {
+      const g = groupList[0]!;
+      rows.push({ key: `${ordinal}`, label: g.day.weekdayHint ?? g.day.name, slots: g.day.slots });
     } else {
-      daysAtOrdinal.forEach((d, weekIdx) => {
+      groupList.forEach((g, gi) => {
         rows.push({
-          key: `${ordinal}-${weekIdx}`,
-          label: `${d.weekdayHint ?? d.name} (${weekIdx + 1}주차)`,
-          slots: d.slots,
+          key: `${ordinal}-${gi}`,
+          label: `${g.day.weekdayHint ?? g.day.name} (${weekListLabel(g.weekNums)})`,
+          slots: g.day.slots,
         });
       });
     }

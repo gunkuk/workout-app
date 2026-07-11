@@ -10,8 +10,20 @@ describe("kk-4day 시드", () => {
     expect(validateProgram(p)).toEqual([]);
   });
 
-  it("2주 사이클 — 데드만 주별 상이(w1 볼륨·규칙없음 / w2 헤비·nsunsTopSet)", () => {
-    expect(p.weeks).toHaveLength(2);
+  it("7주 메조사이클 — 누적 6주(볼륨/헤비 교차) + 디로드 1주", () => {
+    expect(p.weeks).toHaveLength(7);
+    // 디로드 주(W7): progression 규칙·AMRAP 전무, 전 슬롯 3세트 이하 (Bell 2025 오프로드)
+    const deload = p.weeks[6];
+    for (const day of deload.days) {
+      for (const s of day.slots) {
+        expect(s.progressionRuleId, s.id).toBeUndefined();
+        expect(s.sets.some((x) => x.amrapRole), s.id).toBe(false);
+        expect(s.sets.length, s.id).toBeLessThanOrEqual(3);
+      }
+    }
+  });
+
+  it("누적 주 — 데드만 주별 상이(볼륨 주 규칙없음 / 헤비 주 nsunsTopSet)", () => {
     const dead1 = p.weeks[0].days.find((d) => d.ordinal === 2).slots.find((s) => s.exerciseId === "deadlift");
     const dead2 = p.weeks[1].days.find((d) => d.ordinal === 2).slots.find((s) => s.exerciseId === "deadlift");
     expect(dead1.progressionRuleId).toBeUndefined();
