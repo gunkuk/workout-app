@@ -1,0 +1,15 @@
+/*
+ * HistoryScreen · AnalyticsScreen 전용 스타일 (UI 백로그 1·6 — 빈 상태 개선).
+ * index.css는 건드리지 않고 이 두 화면에서만 쓰는 클래스를 분리한다.
+ */
+
+.ha-empty-hint {
+  margin: 8px 0 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.ha-empty-cta {
+  display: inline-block;
+}

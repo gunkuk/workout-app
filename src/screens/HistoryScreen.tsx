@@ -6,17 +6,22 @@ import { tmHistory, e1rmSeries } from "../domain/e1rm";
 import { EXERCISES } from "../domain/exerciseLibrary";
 import { LineChart } from "../components/LineChart";
 import type { SessionCompleted, SetRecord, FoldInput } from "../domain/types.ts";
+import "../styles/history-analytics.css";
 
 const WEEKDAY_KR = ["일", "월", "화", "수", "목", "금", "토"];
 
 /**
- * UI v2(Boostcamp 클론, Stage1-UI2) — 세션 행 표시용 한국어 짧은 날짜("7월 10일 (금)", 스펙 "히스토리").
+ * UI 백로그 항목 3 — 세션 행 표시용 날짜를 "YYYY-MM-DD (요일)"(예: "2026-07-10 (금)")로 표시.
  * ISO 원문은 렌더링에서 버리지 않고 title 속성으로 보존한다(호출부). 파싱 실패 시 원문을 그대로 반환.
+ * (repo 전체 grep 확인 — 이 포맷 문자열을 검증하는 테스트 없음, testid만 검증하므로 포맷 변경 안전.)
  */
 function formatKoreanDate(at: string): string {
   const d = new Date(at);
   if (Number.isNaN(d.getTime())) return at;
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAY_KR[d.getDay()]})`;
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd} (${WEEKDAY_KR[d.getDay()]})`;
 }
 
 /**
@@ -85,7 +90,21 @@ export function HistoryScreen() {
   }
 
   if (sessions.length === 0) {
-    return <div className="loading-state">아직 기록된 세션이 없습니다</div>;
+    return (
+      <div className="loading-state">
+        <p>아직 기록된 세션이 없습니다</p>
+        <p className="ha-empty-hint">오늘 세션을 기록하면 이력과 TM·e1RM 추이를 여기서 확인할 수 있어요</p>
+        <button
+          type="button"
+          className="btn btn-primary ha-empty-cta"
+          onClick={() => {
+            window.location.hash = "/home";
+          }}
+        >
+          오늘 운동 시작하기
+        </button>
+      </div>
+    );
   }
 
   const plainSeries = e1rmSeriesForExercise.find((s) => !s.substituted);
