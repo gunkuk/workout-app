@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, fireEvent, waitFor, within, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within, cleanup, act } from "@testing-library/react";
 import { db } from "../../src/storage/db";
 import { appendSet, appendSession } from "../../src/storage/eventStore";
 import { useProgramStore } from "../../src/store/programStore";
@@ -358,11 +358,14 @@ describe("TodayScreen", () => {
     expect(await screen.findByRole("heading", { level: 2, name: dayName })).toBeInTheDocument();
     await screen.findByRole("navigation", { name: "주요 탐색" });
 
-    // 히스토리 탭으로 이동 후 오늘 탭으로 복귀 — TodayScreen이 재마운트되어도 정상 렌더(스모크).
+    // 히스토리 탭으로 이동 후 세션 화면으로 복귀 — TodayScreen이 재마운트되어도 정상 렌더(스모크).
+    // UI3: "오늘"은 더 이상 탭이 아니므로(홈의 "오늘 운동 시작"으로 진입) 해시로 직접 복귀한다.
     fireEvent.click(screen.getByRole("button", { name: "히스토리" }));
     await waitFor(() => expect(window.location.hash).toBe("#/history"));
 
-    fireEvent.click(screen.getByRole("button", { name: "오늘" }));
+    act(() => {
+      window.location.hash = "#/today";
+    });
     await waitFor(() => expect(window.location.hash).toBe("#/today"));
     expect(await screen.findByRole("heading", { level: 2, name: dayName })).toBeInTheDocument();
 

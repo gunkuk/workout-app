@@ -1,6 +1,5 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { exportSnapshot, importSnapshot, shareOrDownloadSnapshot, parseSnapshotJSON } from "../lib/backup";
-import { ProgramLibrary } from "../components/ProgramLibrary";
 import { useProgramStore } from "../store/programStore";
 import { nowISO } from "../lib/time";
 
@@ -85,13 +84,12 @@ export function SettingsScreen() {
 
   return (
     <div>
-      <a href="#/today" className="back-link">
-        ← 오늘로 돌아가기
+      <a href="#/home" className="back-link">
+        ← 홈으로 돌아가기
       </a>
       <h2 className="day-header">설정</h2>
       {error && <div role="alert" className="alert">{error}</div>}
       {status && <div role="status" className="status-banner">{status}</div>}
-      <ProgramLibrary />
       <section className="settings-card">
         <h3>TM 수동 편집</h3>
         {tmError && <div role="alert" className="alert">{tmError}</div>}

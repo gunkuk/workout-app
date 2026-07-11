@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup, act } from "@testing-library/react";
 import { db } from "../../src/storage/db";
 import { useProgramStore } from "../../src/store/programStore";
 import App from "../../src/App";
@@ -67,6 +67,10 @@ describe("골든패스(통합)", () => {
       const day1Plan = useProgramStore.getState().todayPlan!;
       expect(day1Plan.pos).toEqual({ cycleIndex: 0, week: 0, dayOrdinal: 1 });
 
+      // 3-b. UI3: 온보딩 완료 후엔 홈(대시보드)에 진입 — "오늘 운동 시작"으로 세션에 들어간다.
+      fireEvent.click(await screen.findByRole("button", { name: "오늘 운동 시작" }));
+      await waitFor(() => expect(window.location.hash).toBe("#/today"));
+
       // 4. 오늘 화면(day1: 벤치T1+OHP T2+랫풀 accessory) 렌더 확인 — 워밍업+작업세트 전부 존재.
       await screen.findByRole("heading", { level: 2, name: day1Plan.dayName });
       const totalWork = day1Plan.slots.reduce((n, s) => n + s.sets.length, 0);
@@ -110,8 +114,10 @@ describe("골든패스(통합)", () => {
       await reloaded.findByRole("heading", { level: 2, name: "히스토리" });
       expect(reloaded.getByTestId(`session-row-${completedSession.id}`)).toBeInTheDocument();
 
-      const todayTab = reloaded.getByRole("button", { name: "오늘" });
-      fireEvent.click(todayTab);
+      // UI3: "오늘"은 더 이상 탭이 아니다 — 세션 화면(#/today)으로 직접 이동해 다음 날 계획을 확인한다.
+      act(() => {
+        window.location.hash = "#/today";
+      });
 
       await waitFor(() => {
         expect(useProgramStore.getState().todayPos).toEqual({ cycleIndex: 0, week: 0, dayOrdinal: 2 });

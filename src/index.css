@@ -718,3 +718,10 @@ input[type="file"]::file-selector-button {
   margin-right: 10px;
   cursor: pointer;
 }
+
+/* ---------- UI3: 화면 제목(프로그램 탭 등) ---------- */
+.screen-title {
+  font-size: 22px;
+  font-weight: bold;
+  margin: 0 0 16px;
+}
