@@ -6,6 +6,7 @@ import { LineChart } from "../components/LineChart";
 import { nowISO } from "../lib/time";
 import { trainingWeekdays, buildAttendanceGrid, thisWeekSummary } from "./home/attendance";
 import { combinedT1Performance, est1RM, liftSummary } from "./home/performance";
+import { activeSessions } from "../store/sessionRevocation";
 import type { FoldInput } from "../domain/types.ts";
 
 export type HomeScreenProps = {
@@ -72,8 +73,9 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
         setCompletedThisWeek(0);
         return;
       }
+      // 취소(revoked)된 세션은 이번 주 완료 카운트에서 제외(Stage1-UI9).
       const ids = new Set(
-        input.sessions
+        activeSessions(input.sessions, input.corrections)
           .filter(
             (s) =>
               s.status === "completed" &&

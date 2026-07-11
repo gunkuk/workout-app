@@ -137,14 +137,21 @@ function FastForwardCard() {
     const target: CyclePos = { cycleIndex: Math.floor((clampedWeek - 1) / weeksPerCycle), week: weekIdx, dayOrdinal: safeDayOrdinal };
     const dayLabel = dayOptions.find((d) => d.ordinal === safeDayOrdinal);
     const confirmed = window.confirm(
-      `${clampedWeek}주차 ${dayLabel?.weekdayHint ?? ""}로 이동합니다. 건너뛴 날들은 빈 완료로 기록되며 TM은 변하지 않습니다. 계속할까요?`
+      `${clampedWeek}주차 ${dayLabel?.weekdayHint ?? ""}로 이동합니다. 건너뛴 날들은 빈 완료로 기록되며 TM은 변하지 않습니다. ` +
+        `뒤로 이동하는 경우 지나간 세션들은 취소 처리됩니다(기록이 있던 세션의 TM 반영은 유지). 계속할까요?`
     );
     if (!confirmed) return;
 
     setBusy(true);
     try {
-      await fastForwardTo(target);
-      setMessage({ kind: "success", text: "이동 완료." });
+      const result = await fastForwardTo(target);
+      setMessage({
+        kind: "success",
+        text:
+          result.revokedReal > 0
+            ? `이동 완료 — 실제 기록이 있던 세션 ${result.revokedReal}개가 취소되었습니다(TM은 유지 — 필요시 설정에서 수동 조정).`
+            : "이동 완료.",
+      });
     } catch (e) {
       setMessage({ kind: "error", text: e instanceof Error ? e.message : String(e) });
     } finally {

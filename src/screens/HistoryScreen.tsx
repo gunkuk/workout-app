@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { loadEventLog, listExternalSessions, loadSessionNote, type ExternalSessionRecord } from "../store/queries";
 import { sortByAtId } from "../domain/order";
 import { applyCorrections } from "../domain/corrections";
+import { activeSessions } from "../store/sessionRevocation";
 import { tmHistory, e1rmSeries } from "../domain/e1rm";
 import { EXERCISES } from "../domain/exerciseLibrary";
 import { LineChart } from "../components/LineChart";
@@ -56,7 +57,9 @@ export function HistoryScreen() {
       try {
         const [input, external] = await Promise.all([loadEventLog(), listExternalSessions()]);
         if (cancelled) return;
-        setSessions(sortByAtId(input.sessions).reverse());
+        // 취소(revoked)된 세션은 히스토리 목록에서 제외 — 외부(크로스핏 등) 세션은 이 revocation
+        // 대상이 아니므로 그대로(Stage1-UI9).
+        setSessions(sortByAtId(activeSessions(input.sessions, input.corrections)).reverse());
         setSets(input.sets);
         setFoldInput(input);
         setExternalSessions(external);

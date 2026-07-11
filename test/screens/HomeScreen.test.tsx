@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { db } from "../../src/storage/db";
-import { appendSession, appendSet } from "../../src/storage/eventStore";
+import { appendSession, appendSet, appendCorrection } from "../../src/storage/eventStore";
 import { useProgramStore } from "../../src/store/programStore";
 import { HomeScreen } from "../../src/screens/HomeScreen";
 import { resetDb } from "../helpers/db";
@@ -236,5 +236,34 @@ describe("HomeScreen", () => {
     expect(await screen.findByText(/벤치프레스\s*105/)).toBeInTheDocument();
     expect(screen.getByText("≈116.7")).toBeInTheDocument();
     expect(screen.getByText("측정 110")).toBeInTheDocument(); // epley(100,3) = 110
+  });
+
+  it("⑫ 취소(revoked)된 세션(Stage1-UI9, 진행 위치 뒤로 이동)은 이번 주 진행률에서 제외됨", async () => {
+    await onboard();
+    const todayPos = useProgramStore.getState().todayPos!;
+    const totalDays = seed.weeks[todayPos.week]!.days.length;
+
+    const completedSession: SessionCompleted = {
+      id: "sc-revoked-test",
+      sessionId: "revoked-test-session",
+      at: at(2),
+      cyclePos: todayPos,
+      status: "completed",
+      programId: seed.id,
+      programVersion: seed.version,
+      schemaVersion: 1,
+    };
+    await appendSession(completedSession);
+    await appendCorrection({
+      id: "corr-revoke-home",
+      supersedes: completedSession.id,
+      revoked: true,
+      at: at(3),
+      schemaVersion: 1,
+    });
+
+    render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText(`이번 주 0/${totalDays} 완료`)).toBeInTheDocument());
   });
 });

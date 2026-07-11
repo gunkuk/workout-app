@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, within, cleanup } from "@testing-library/react";
 import { db } from "../../src/storage/db";
-import { appendSession, appendSet, appendDecision, upsertSessionNote } from "../../src/storage/eventStore";
+import { appendSession, appendSet, appendDecision, appendCorrection, upsertSessionNote } from "../../src/storage/eventStore";
 import { HistoryScreen } from "../../src/screens/HistoryScreen";
 import * as queries from "../../src/store/queries";
 import type { SessionCompleted, SetRecord, DecisionEvent } from "../../src/domain/types.ts";
@@ -250,5 +250,21 @@ describe("HistoryScreen", () => {
     fireEvent.click(row);
     await screen.findByTestId("session-sets-s1");
     expect(screen.queryByTestId("session-note-s1")).not.toBeInTheDocument();
+  });
+
+  it("⑫ 취소(revoked)된 세션(Stage1-UI9, 진행 위치 뒤로 이동) — 목록에서 제외되고 나머지는 그대로 노출", async () => {
+    await appendSession(session("s-live", { sessionId: "live", at: "2026-07-08T09:00:00Z" }));
+    await appendSession(session("s-revoked", { sessionId: "revoked", at: "2026-07-05T09:00:00Z" }));
+    await appendCorrection({
+      id: "corr-revoke-1",
+      supersedes: "s-revoked",
+      revoked: true,
+      at: "2026-07-06T09:00:00Z",
+      schemaVersion: 1,
+    });
+
+    render(<HistoryScreen />);
+    await screen.findByTestId("session-row-s-live");
+    expect(screen.queryByTestId("session-row-s-revoked")).not.toBeInTheDocument();
   });
 });
