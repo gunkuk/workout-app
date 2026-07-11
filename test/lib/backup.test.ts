@@ -12,6 +12,14 @@ import {
   getInstanceState,
   appendExternalSession,
   listExternalSessions,
+  appendBodyMetric,
+  listBodyMetrics,
+  addInjury,
+  listInjuries,
+  upsertSessionNote,
+  listSessionNotes,
+  upsertExerciseComment,
+  listExerciseComments,
 } from "../../src/storage/eventStore";
 import { programKey } from "../../src/domain/foldSupport";
 import {
@@ -64,6 +72,10 @@ const EMPTY_SNAPSHOT: BackupSnapshot = {
   programs: [],
   library: [],
   externalSessions: [],
+  bodyMetrics: [],
+  injuries: [],
+  sessionNotes: [],
+  exerciseComments: [],
 };
 
 const ORIGINAL_UA = navigator.userAgent;
@@ -109,6 +121,10 @@ async function seedFullSnapshotData(): Promise<void> {
     programId: "p1",
     cyclePos: { cycleIndex: 0, week: 0 },
   });
+  await appendBodyMetric({ id: "bm1", at: "2026-07-10T07:00:00Z", weightKg: 80, bodyFatPct: 18, schemaVersion: 1 });
+  await addInjury({ id: "inj1", bodyPart: "무릎", startedAt: "2026-07-05T00:00:00Z", schemaVersion: 1 });
+  await upsertSessionNote({ id: "sn1", sessionId: "s1", note: "오늘 컨디션 좋음", at: "2026-07-10T09:35:00Z", schemaVersion: 1 });
+  await upsertExerciseComment({ id: "ec1", exerciseId: "bench", note: "그립 좁게", at: "2026-07-10T09:36:00Z", schemaVersion: 1 });
   await setInstanceState({
     programId: "p1",
     programVersion: 1,
@@ -161,6 +177,44 @@ describe("backup", () => {
       anchor: {},
       schemaVersion: 1,
     });
+  });
+
+  it("⑧(UI5 T1) 백업 왕복에 추적 엔티티 4종(체성분/부상/세션노트/운동코멘트) 포함", async () => {
+    await seedFullSnapshotData();
+    const snapshot = await exportSnapshot();
+    expect(snapshot.bodyMetrics).toEqual([{ id: "bm1", at: "2026-07-10T07:00:00Z", weightKg: 80, bodyFatPct: 18, schemaVersion: 1 }]);
+    expect(snapshot.injuries).toEqual([{ id: "inj1", bodyPart: "무릎", startedAt: "2026-07-05T00:00:00Z", schemaVersion: 1 }]);
+    expect(snapshot.sessionNotes).toEqual([
+      { id: "sn1", sessionId: "s1", note: "오늘 컨디션 좋음", at: "2026-07-10T09:35:00Z", schemaVersion: 1 },
+    ]);
+    expect(snapshot.exerciseComments).toEqual([
+      { id: "ec1", exerciseId: "bench", note: "그립 좁게", at: "2026-07-10T09:36:00Z", schemaVersion: 1 },
+    ]);
+
+    await resetDb();
+    expect(await listBodyMetrics()).toEqual([]);
+    expect(await listInjuries()).toEqual([]);
+    expect(await listSessionNotes()).toEqual([]);
+    expect(await listExerciseComments()).toEqual([]);
+
+    await importSnapshot(snapshot);
+    expect(await listBodyMetrics()).toEqual(snapshot.bodyMetrics);
+    expect(await listInjuries()).toEqual(snapshot.injuries);
+    expect(await listSessionNotes()).toEqual(snapshot.sessionNotes);
+    expect(await listExerciseComments()).toEqual(snapshot.exerciseComments);
+  });
+
+  it("⑧-2(UI5 T1) 추적 엔티티 4종 필드 없는 옛 백업도 가져오기 성공(하위호환, `?? []`)", async () => {
+    const legacySnapshot = { ...EMPTY_SNAPSHOT } as Partial<BackupSnapshot>;
+    delete legacySnapshot.bodyMetrics;
+    delete legacySnapshot.injuries;
+    delete legacySnapshot.sessionNotes;
+    delete legacySnapshot.exerciseComments;
+    await expect(importSnapshot(legacySnapshot)).resolves.not.toThrow();
+    expect(await listBodyMetrics()).toEqual([]);
+    expect(await listInjuries()).toEqual([]);
+    expect(await listSessionNotes()).toEqual([]);
+    expect(await listExerciseComments()).toEqual([]);
   });
 
   it("⑦(Stage1-C3 T4) 백업 왕복에 externalSessions 포함", async () => {

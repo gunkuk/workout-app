@@ -12,6 +12,14 @@ import {
   setInstanceState,
   listExternalSessions,
   appendExternalSession,
+  listBodyMetrics,
+  appendBodyMetric,
+  listInjuries,
+  addInjury,
+  listSessionNotes,
+  upsertSessionNote,
+  listExerciseComments,
+  upsertExerciseComment,
 } from "../storage/eventStore";
 import { isIOS } from "./platform";
 import type {
@@ -23,6 +31,7 @@ import type {
   ProgramInstanceState,
 } from "../domain/types.ts";
 import type { ExternalSessionRecord } from "../storage/db";
+import type { BodyMetric, InjuryLog, SessionNote, ExerciseComment } from "../storage/trackingTypes";
 
 /**
  * Task 7(C2) — JSON 백업 내보내기/가져오기(스펙 §2-8, §3.3).
@@ -45,6 +54,12 @@ export type BackupSnapshot = {
   /** 외부(크로스핏 등) 세션 원본(Stage1-C3 T4). schemaVersion은 그대로 1 유지 — 옛 백업(이 필드
    * 없음)도 importSnapshot에서 `?? []`로 하위호환 수용한다. */
   externalSessions: ExternalSessionRecord[];
+  /** 추적 엔티티 4종(UI5 T1, fold 입력 밖) — externalSessions와 동일하게 schemaVersion은 1 유지,
+   * 옛 백업(이 필드들 없음)도 importSnapshot에서 `?? []`로 하위호환 수용한다. */
+  bodyMetrics: BodyMetric[];
+  injuries: InjuryLog[];
+  sessionNotes: SessionNote[];
+  exerciseComments: ExerciseComment[];
 };
 
 /**
@@ -54,13 +69,18 @@ export type BackupSnapshot = {
  * 동일 쿼리를 두 번 다른 형태로 담을 필요가 없다(Map→array 변환 요구는 이미-배열인 소스 재사용으로 충족).
  */
 export async function exportSnapshot(): Promise<BackupSnapshot> {
-  const [foldInput, library, programs, instanceState, externalSessions] = await Promise.all([
-    loadFoldInput(),
-    getLibraryEntries(),
-    getAllProgramVersions(),
-    getInstanceState(),
-    listExternalSessions(),
-  ]);
+  const [foldInput, library, programs, instanceState, externalSessions, bodyMetrics, injuries, sessionNotes, exerciseComments] =
+    await Promise.all([
+      loadFoldInput(),
+      getLibraryEntries(),
+      getAllProgramVersions(),
+      getInstanceState(),
+      listExternalSessions(),
+      listBodyMetrics(),
+      listInjuries(),
+      listSessionNotes(),
+      listExerciseComments(),
+    ]);
   const snapshot: BackupSnapshot = {
     schemaVersion: SCHEMA_VERSION,
     sets: foldInput.sets,
@@ -70,6 +90,10 @@ export async function exportSnapshot(): Promise<BackupSnapshot> {
     programs,
     library,
     externalSessions,
+    bodyMetrics,
+    injuries,
+    sessionNotes,
+    exerciseComments,
   };
   if (instanceState) snapshot.instanceState = instanceState;
   return snapshot;
@@ -98,6 +122,11 @@ export async function importSnapshot(data: object): Promise<void> {
   // 하위호환: 이 필드가 없는 옛 백업(externalSessions 도입 전, schemaVersion은 그대로 1)도
   // `?? []`로 그대로 수용 — 스냅샷 schemaVersion은 올리지 않는다.
   const externalSessions = snapshot.externalSessions ?? [];
+  // 하위호환: UI5 T1 추적 엔티티 4종도 동일 패턴 — 이 필드들 없는 옛 백업도 `?? []`로 수용.
+  const bodyMetrics = snapshot.bodyMetrics ?? [];
+  const injuries = snapshot.injuries ?? [];
+  const sessionNotes = snapshot.sessionNotes ?? [];
+  const exerciseComments = snapshot.exerciseComments ?? [];
 
   await Promise.all([
     ...sets.map((s) => appendSet(s)),
@@ -107,6 +136,10 @@ export async function importSnapshot(data: object): Promise<void> {
     ...programs.map((p) => upsertProgramVersion(p)),
     ...library.map((l) => addToLibrary(l.programId, l.addedAt)),
     ...externalSessions.map((e) => appendExternalSession(e)),
+    ...bodyMetrics.map((b) => appendBodyMetric(b)),
+    ...injuries.map((i) => addInjury(i)),
+    ...sessionNotes.map((n) => upsertSessionNote(n)),
+    ...exerciseComments.map((c) => upsertExerciseComment(c)),
   ]);
 
   if (snapshot.instanceState) {

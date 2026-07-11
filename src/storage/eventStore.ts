@@ -1,5 +1,6 @@
 import { db, type ExternalSessionRecord } from "./db";
 import { programKey } from "../domain/foldSupport";
+import { sortByAtId } from "../domain/order";
 import type {
   SetRecord,
   CorrectionRecord,
@@ -9,6 +10,7 @@ import type {
   ProgramInstanceState,
   FoldInput,
 } from "../domain/types.ts";
+import type { BodyMetric, InjuryLog, SessionNote, ExerciseComment } from "./trackingTypes";
 
 export async function appendSet(rec: SetRecord): Promise<void> {
   await db.setRecords.put(rec);
@@ -115,6 +117,65 @@ export async function appendExternalSession(rec: ExternalSessionRecord): Promise
 /** 외부 세션 전체 조회(Stage1-C3 T4) — 저장 원본 그대로(id/at 포함). */
 export async function listExternalSessions(): Promise<ExternalSessionRecord[]> {
   return db.externalSessions.toArray();
+}
+
+/** 체성분 기록 추가(UI5 T1) — 몸무게·체지방 중 하나만 있어도 허용, fold 입력 밖(동결 대상 아님). */
+export async function appendBodyMetric(rec: BodyMetric): Promise<void> {
+  await db.bodyMetrics.put(rec);
+}
+
+/** 체성분 기록 전체 조회, at 오름차순(오래된 것부터 — 대시보드 라인차트가 시간순으로 소비). */
+export async function listBodyMetrics(): Promise<BodyMetric[]> {
+  return sortByAtId(await db.bodyMetrics.toArray());
+}
+
+/** 부상 기록 추가(UI5 T1). */
+export async function addInjury(rec: InjuryLog): Promise<void> {
+  await db.injuries.put(rec);
+}
+
+/** 부상 해소 처리 — 기존 레코드의 resolvedAt만 갱신(나머지 필드 보존). */
+export async function resolveInjury(id: string, resolvedAt: string): Promise<void> {
+  await db.injuries.update(id, { resolvedAt });
+}
+
+/** 부상 기록 전체 조회, startedAt 오름차순(동률이면 id로 타이브레이크). */
+export async function listInjuries(): Promise<InjuryLog[]> {
+  const rows = await db.injuries.toArray();
+  return [...rows].sort((a, b) =>
+    a.startedAt < b.startedAt ? -1 : a.startedAt > b.startedAt ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+  );
+}
+
+/** 세션 코멘트 upsert(UI5 T1) — id 기준 put(Dexie 업서트 의미론, 기존 append 계열과 동일 구현). */
+export async function upsertSessionNote(rec: SessionNote): Promise<void> {
+  await db.sessionNotes.put(rec);
+}
+
+/** 특정 세션의 코멘트 조회 — 동일 sessionId로 여러 번 upsert된 경우 가장 최근(at) 1건을 반환한다. */
+export async function getSessionNote(sessionId: string): Promise<SessionNote | undefined> {
+  const rows = await db.sessionNotes.toArray();
+  const matching = rows.filter((r) => r.sessionId === sessionId);
+  if (matching.length === 0) return undefined;
+  return sortByAtId(matching).at(-1);
+}
+
+/** 세션 코멘트 전체 조회(UI5 T1, 백업 export용 — getSessionNote는 단일 sessionId 조회라 전체 스냅샷에
+ * 쓸 수 없다), at 오름차순. */
+export async function listSessionNotes(): Promise<SessionNote[]> {
+  return sortByAtId(await db.sessionNotes.toArray());
+}
+
+/** 운동 코멘트 upsert(UI5 T1) — id 기준 put. */
+export async function upsertExerciseComment(rec: ExerciseComment): Promise<void> {
+  await db.exerciseComments.put(rec);
+}
+
+/** 운동 코멘트 조회 — exerciseId 지정 시 해당 운동만, 미지정 시 전체(둘 다 at 오름차순). */
+export async function listExerciseComments(exerciseId?: string): Promise<ExerciseComment[]> {
+  const rows = await db.exerciseComments.toArray();
+  const filtered = exerciseId ? rows.filter((r) => r.exerciseId === exerciseId) : rows;
+  return sortByAtId(filtered);
 }
 
 export async function loadFoldInput(): Promise<FoldInput> {
