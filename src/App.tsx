@@ -7,10 +7,11 @@ import { HistoryScreen } from "./screens/HistoryScreen";
 import { OnboardingScreen } from "./screens/OnboardingScreen";
 import { AnalyticsScreen } from "./screens/AnalyticsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
+import { FreeWorkoutScreen } from "./screens/FreeWorkoutScreen";
 import { NavShell, type NavRoute } from "./components/NavShell";
 import { InstallBanner } from "./components/InstallBanner";
 
-type RouteName = "home" | "session" | "program" | "history" | "analytics" | "settings" | "onboarding";
+type RouteName = "home" | "session" | "program" | "history" | "analytics" | "settings" | "onboarding" | "free";
 
 function parseRoute(hash: string): RouteName {
   const path = hash.replace(/^#/, "");
@@ -20,6 +21,7 @@ function parseRoute(hash: string): RouteName {
   if (path === "/analytics") return "analytics";
   if (path === "/settings") return "settings";
   if (path === "/onboarding") return "onboarding";
+  if (path === "/free") return "free";
   return "home";
 }
 
@@ -61,7 +63,7 @@ export default function App() {
 
   // status === "ready" (UI3): 홈(대시보드)이 기본 화면. 세션 로깅(TodayScreen)은 탭이 아니라
   // 홈의 "오늘 운동 시작"에서 진입하고, 완료 시 홈으로 돌아와 갱신된 달성률을 보여준다.
-  // 하단 탭 하이라이트(NavRoute)는 home/program/history/analytics 4개 — session·settings는
+  // 하단 탭 하이라이트(NavRoute)는 home/program/history/analytics 4개 — session·settings·free는
   // home 하이라이트로 취급하되 실제 렌더는 route로 먼저 분기한다.
   const activeRoute: NavRoute =
     route === "history" ? "history" : route === "analytics" ? "analytics" : route === "program" ? "program" : "home";
@@ -81,8 +83,10 @@ export default function App() {
           <HistoryScreen />
         ) : route === "analytics" ? (
           <AnalyticsScreen />
+        ) : route === "free" ? (
+          <FreeWorkoutScreen onDone={() => navigate("/history")} />
         ) : (
-          <HomeScreen onStartSession={() => navigate("/today")} />
+          <HomeScreen onStartSession={() => navigate("/today")} onLogFreeWorkout={() => navigate("/free")} />
         )}
       </div>
       <NavShell active={activeRoute} />

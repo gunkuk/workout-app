@@ -5,6 +5,7 @@ import { exerciseInfo } from "../domain/exerciseLibrary";
 
 export type HomeScreenProps = {
   onStartSession: () => void;
+  onLogFreeWorkout: () => void;
 };
 
 const MODE_LABELS: Record<string, string> = {
@@ -13,7 +14,7 @@ const MODE_LABELS: Record<string, string> = {
 };
 
 /** Boostcamp 스타일 홈/대시보드 — 신규 랜딩 화면. 도메인 로직 변경 없이 기존 store/queries만 소비. */
-export function HomeScreen({ onStartSession }: HomeScreenProps) {
+export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps) {
   const activeProgram = useProgramStore((s) => s.activeProgram);
   const todayPos = useProgramStore((s) => s.todayPos);
   const instanceState = useProgramStore((s) => s.instanceState);
@@ -95,6 +96,12 @@ export function HomeScreen({ onStartSession }: HomeScreenProps) {
         ) : (
           <p className="form-label">오늘 계획을 불러오는 중</p>
         )}
+      </div>
+
+      <div className="settings-card">
+        <button type="button" className="btn btn-secondary" onClick={onLogFreeWorkout}>
+          크로스핏 · 자유 운동 기록
+        </button>
       </div>
     </div>
   );

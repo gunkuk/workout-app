@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { loadEventLog } from "../store/queries";
+import { loadEventLog, listExternalSessions, type ExternalSessionRecord } from "../store/queries";
 import { sortByAtId } from "../domain/order";
 import { applyCorrections } from "../domain/corrections";
 import { tmHistory, e1rmSeries } from "../domain/e1rm";
@@ -43,6 +43,7 @@ export function HistoryScreen() {
   const [sessions, setSessions] = useState<SessionCompleted[] | null>(null);
   const [sets, setSets] = useState<SetRecord[]>([]);
   const [foldInput, setFoldInput] = useState<FoldInput | null>(null);
+  const [externalSessions, setExternalSessions] = useState<ExternalSessionRecord[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -51,11 +52,12 @@ export function HistoryScreen() {
     let cancelled = false;
     (async () => {
       try {
-        const input = await loadEventLog();
+        const [input, external] = await Promise.all([loadEventLog(), listExternalSessions()]);
         if (cancelled) return;
         setSessions(sortByAtId(input.sessions).reverse());
         setSets(input.sets);
         setFoldInput(input);
+        setExternalSessions(external);
       } catch {
         if (cancelled) return;
         setError("불러오기 실패 — 다시 시도해주세요.");
@@ -65,6 +67,17 @@ export function HistoryScreen() {
       cancelled = true;
     };
   }, []);
+
+  /** 프로그램 세션 + 외부(크로스핏 등) 세션을 at 내림차순으로 병합한 표시용 행 목록(Stage1-UI6). */
+  type HistoryRow =
+    | { kind: "program"; id: string; at: string; session: SessionCompleted }
+    | { kind: "external"; id: string; at: string; session: ExternalSessionRecord };
+
+  const mergedRows: HistoryRow[] = useMemo(() => {
+    const programRows: HistoryRow[] = (sessions ?? []).map((s) => ({ kind: "program", id: s.id, at: s.at, session: s }));
+    const externalRows: HistoryRow[] = externalSessions.map((s) => ({ kind: "external", id: s.id, at: s.at, session: s }));
+    return [...programRows, ...externalRows].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+  }, [sessions, externalSessions]);
 
   const tmPoints = useMemo(() => {
     if (!foldInput || !selectedExerciseId) return [];
@@ -89,7 +102,7 @@ export function HistoryScreen() {
     return <div className="loading-state">로딩 중...</div>;
   }
 
-  if (sessions.length === 0) {
+  if (sessions.length === 0 && externalSessions.length === 0) {
     return (
       <div className="loading-state">
         <p>아직 기록된 세션이 없습니다</p>
@@ -164,28 +177,77 @@ export function HistoryScreen() {
       </section>
 
       <ul>
-        {sessions.map((session) => {
-          const isExpanded = expandedId === session.id;
-          const sessionSets = sets.filter((s) => s.sessionId === session.sessionId);
+        {mergedRows.map((row) => {
+          const isExpanded = expandedId === row.id;
+          if (row.kind === "program") {
+            const session = row.session;
+            const sessionSets = sets.filter((s) => s.sessionId === session.sessionId);
+            return (
+              <li key={session.id}>
+                <div
+                  data-testid={`session-row-${session.id}`}
+                  role="button"
+                  tabIndex={0}
+                  className="session-row"
+                  title={session.at}
+                  onClick={() => setExpandedId(isExpanded ? null : session.id)}
+                >
+                  {formatKoreanDate(session.at)} — {session.programId} — {session.status === "completed" ? "완료" : "스킵"}
+                </div>
+                {isExpanded && (
+                  <ul data-testid={`session-sets-${session.id}`} className="session-sets">
+                    {sessionSets.map((s) => (
+                      <li key={s.id}>
+                        {s.exerciseId} {s.actualWeight}kg × {s.actualReps}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            );
+          }
+
+          const ext = row.session;
+          const label = ext.label ?? "크로스핏";
+          const exerciseCount = ext.exercises?.length ?? 0;
+          const cardioCount = ext.cardio?.length ?? 0;
           return (
-            <li key={session.id}>
+            <li key={ext.id}>
               <div
-                data-testid={`session-row-${session.id}`}
+                data-testid={`session-row-${ext.id}`}
                 role="button"
                 tabIndex={0}
                 className="session-row"
-                title={session.at}
-                onClick={() => setExpandedId(isExpanded ? null : session.id)}
+                title={ext.at}
+                onClick={() => setExpandedId(isExpanded ? null : ext.id)}
               >
-                {formatKoreanDate(session.at)} — {session.programId} — {session.status === "completed" ? "완료" : "스킵"}
+                {formatKoreanDate(ext.at)} — {label} — 자유운동 {exerciseCount} · 유산소 {cardioCount}
               </div>
               {isExpanded && (
-                <ul data-testid={`session-sets-${session.id}`} className="session-sets">
-                  {sessionSets.map((s) => (
-                    <li key={s.id}>
-                      {s.exerciseId} {s.actualWeight}kg × {s.actualReps}
-                    </li>
-                  ))}
+                <ul data-testid={`session-sets-${ext.id}`} className="session-sets">
+                  {(ext.exercises ?? []).map((ex, i) => {
+                    const parts: string[] = [];
+                    if (ex.weightKg !== undefined) parts.push(`${ex.weightKg}kg`);
+                    if (ex.reps !== undefined) parts.push(`${ex.reps}회`);
+                    if (ex.sets !== undefined) parts.push(`${ex.sets}세트`);
+                    return (
+                      <li key={`ex-${i}`}>
+                        {ex.name}
+                        {parts.length > 0 ? ` ${parts.join("×")}` : ""}
+                      </li>
+                    );
+                  })}
+                  {(ext.cardio ?? []).map((c, i) => {
+                    const parts: string[] = [];
+                    if (c.minutes !== undefined) parts.push(`${c.minutes}분`);
+                    if (c.distanceKm !== undefined) parts.push(`${c.distanceKm}km`);
+                    return (
+                      <li key={`cardio-${i}`}>
+                        {c.kind}
+                        {parts.length > 0 ? ` ${parts.join(" · ")}` : ""}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </li>

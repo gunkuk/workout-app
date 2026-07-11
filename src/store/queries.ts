@@ -7,7 +7,7 @@ import {
   getSessionNote,
 } from "../storage/eventStore";
 import type { FoldInput, ProgramDefinition } from "../domain/types.ts";
-export type { ExternalSessionRecord } from "../storage/db";
+export type { ExternalSessionRecord, FreeExercise, CardioEntry } from "../storage/db";
 
 /**
  * 이벤트 로그 읽기 포털 — loadFoldInput 1:1 위임(Stage1-R T3). 화면들이 storage/eventStore를

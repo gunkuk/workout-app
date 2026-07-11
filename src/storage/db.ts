@@ -15,12 +15,18 @@ import type { BodyMetric, InjuryLog, SessionNote, ExerciseComment } from "./trac
  * ExternalSession({cyclePos, groups, programId})에 저장 메타(id·at)를 더한 형태 —
  * eventStore가 조회 시 id/at을 드롭해 domain 계약으로 매핑한다.
  */
+export type FreeExercise = { name: string; weightKg?: number; reps?: number; sets?: number };
+export type CardioEntry = { kind: string; minutes?: number; distanceKm?: number };
+
 export type ExternalSessionRecord = {
   id: string;
   at: string;
   groups: MuscleGroup[];
   programId: string;
   cyclePos: { cycleIndex: number; week: number };
+  label?: string;
+  exercises?: FreeExercise[];
+  cardio?: CardioEntry[];
 };
 
 export class WorkoutDB extends Dexie {

@@ -46,7 +46,7 @@ async function onboard(): Promise<void> {
 describe("HomeScreen", () => {
   it("① 온보딩 후 활성 프로그램 이름을 렌더한다", async () => {
     await onboard();
-    render(<HomeScreen onStartSession={vi.fn()} />);
+    render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
     await waitFor(() => expect(screen.getByText(seed.name)).toBeInTheDocument());
   });
 
@@ -59,7 +59,7 @@ describe("HomeScreen", () => {
     const { exerciseInfo } = await import("../../src/domain/exerciseLibrary");
     const displayName = exerciseInfo(firstSlot.exerciseId)?.name ?? firstSlot.exerciseId;
 
-    render(<HomeScreen onStartSession={vi.fn()} />);
+    render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
 
     expect(await screen.findByText(displayName)).toBeInTheDocument();
   });
@@ -67,11 +67,21 @@ describe("HomeScreen", () => {
   it("③ '오늘 운동 시작' 버튼 클릭 시 onStartSession 호출", async () => {
     await onboard();
     const onStartSession = vi.fn();
-    render(<HomeScreen onStartSession={onStartSession} />);
+    render(<HomeScreen onStartSession={onStartSession} onLogFreeWorkout={vi.fn()} />);
 
     const btn = await screen.findByRole("button", { name: "오늘 운동 시작" });
     fireEvent.click(btn);
     expect(onStartSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("⑥ '크로스핏 · 자유 운동 기록' 버튼 클릭 시 onLogFreeWorkout 호출", async () => {
+    await onboard();
+    const onLogFreeWorkout = vi.fn();
+    render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={onLogFreeWorkout} />);
+
+    const btn = await screen.findByRole("button", { name: "크로스핏 · 자유 운동 기록" });
+    fireEvent.click(btn);
+    expect(onLogFreeWorkout).toHaveBeenCalledTimes(1);
   });
 
   it("④ 완료된 세션 없을 때 주간 진행률 0/M 표시", async () => {
@@ -79,7 +89,7 @@ describe("HomeScreen", () => {
     const todayPos = useProgramStore.getState().todayPos!;
     const totalDays = seed.weeks[todayPos.week]!.days.length;
 
-    render(<HomeScreen onStartSession={vi.fn()} />);
+    render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByText(`이번 주 0/${totalDays} 완료`)).toBeInTheDocument());
   });
@@ -101,7 +111,7 @@ describe("HomeScreen", () => {
     };
     await appendSession(completedSession);
 
-    render(<HomeScreen onStartSession={vi.fn()} />);
+    render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByText(`이번 주 1/${totalDays} 완료`)).toBeInTheDocument());
   });

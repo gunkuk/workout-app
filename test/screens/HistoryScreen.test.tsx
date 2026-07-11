@@ -195,4 +195,27 @@ describe("HistoryScreen", () => {
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     spy.mockRestore();
   });
+
+  it("⑨ 외부(크로스핏) 세션 — 라벨/요약 표시 + 클릭 시 운동·유산소 상세 펼침", async () => {
+    await db.externalSessions.add({
+      id: "ext1",
+      at: "2026-07-09T09:00:00Z",
+      groups: ["core"],
+      programId: "nsuns-5day",
+      cyclePos: { cycleIndex: 0, week: 0 },
+      label: "크로스핏 WOD",
+      exercises: [{ name: "버피", weightKg: 20, reps: 10, sets: 3 }],
+      cardio: [{ kind: "로잉", minutes: 15 }],
+    });
+
+    render(<HistoryScreen />);
+    const row = await screen.findByTestId("session-row-ext1");
+    expect(row).toHaveTextContent("크로스핏 WOD");
+    expect(row).toHaveTextContent("자유운동 1 · 유산소 1");
+
+    fireEvent.click(row);
+    const details = await screen.findByTestId("session-sets-ext1");
+    expect(within(details).getByText(/버피/)).toBeInTheDocument();
+    expect(within(details).getByText(/로잉/)).toBeInTheDocument();
+  });
 });
