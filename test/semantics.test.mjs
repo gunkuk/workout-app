@@ -32,6 +32,21 @@ describe("시맨틱 검증", () => {
     expect(validateSemantics(p).join("\n")).toContain("slotId 중복");
   });
 
+  // 2026-07-11 완화(KK 4-day 멀티위크): slotId 유일성은 주 내에서만 — 주 간 같은 id 재사용은
+  // "같은 슬롯의 재등장"(doubleProgression 상태 연속에 필요)으로 허용하되 exerciseId가 같아야 한다.
+  it("주 간 같은 slotId 재사용(동일 exerciseId)은 허용", () => {
+    const p = twoSlotProgram();
+    p.weeks.push(JSON.parse(JSON.stringify(p.weeks[0])));
+    expect(validateSemantics(p)).toEqual([]);
+  });
+
+  it("주 간 slotId 재사용인데 exerciseId가 다르면 에러", () => {
+    const p = twoSlotProgram();
+    p.weeks.push(JSON.parse(JSON.stringify(p.weeks[0])));
+    p.weeks[1].days[0].slots[0].exerciseId = "otherLift";
+    expect(validateSemantics(p).join("\n")).toContain("exerciseId 불일치");
+  });
+
   it("슬롯당 topSet 2개를 잡는다", () => {
     const p = minimalProgram();
     p.weeks[0].days[0].slots[0].sets = [
