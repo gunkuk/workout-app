@@ -5,6 +5,7 @@ import { weeklyAnalysis, type GroupStats, type WeekBucket } from "../domain/anal
 import type { MuscleGroup } from "../domain/exerciseLibrary";
 import type { FoldInput } from "../domain/types.ts";
 import { nowISO } from "../lib/time";
+import "../styles/history-analytics.css";
 
 const GROUP_LABELS: Record<MuscleGroup, string> = {
   chest: "가슴",
@@ -167,7 +168,7 @@ export function AnalyticsScreen() {
       <div>
         <h2 className="day-header">주간 분석</h2>
         <p>아직 분석할 세션 데이터가 없습니다</p>
-        {externalSection}
+        <p className="ha-empty-hint">세션을 완료하면 부위별 주간 분석이 여기 표시됩니다</p>
       </div>
     );
   }

@@ -61,12 +61,22 @@ beforeEach(async () => {
 });
 
 describe("HistoryScreen", () => {
-  it("① 세션 없음 → 빈 상태 메시지", async () => {
+  it("① 세션 없음 → 빈 상태 메시지 + CTA + TM/e1RM 섹션 숨김", async () => {
     render(<HistoryScreen />);
     expect(await screen.findByText("아직 기록된 세션이 없습니다")).toBeInTheDocument();
+    expect(screen.getByText("오늘 세션을 기록하면 이력과 TM·e1RM 추이를 여기서 확인할 수 있어요")).toBeInTheDocument();
+
+    // TM 이력/e1RM 추이 드롭다운 섹션 전체가 렌더되지 않아야 함.
+    expect(screen.queryByText("TM 이력 / e1RM 추이")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("history-exercise-select")).not.toBeInTheDocument();
+
+    // CTA 클릭 → 홈으로 이동(window.location.hash 직접 설정, "/home" → "#/home"로 정규화).
+    window.location.hash = "";
+    fireEvent.click(screen.getByRole("button", { name: "오늘 운동 시작하기" }));
+    expect(window.location.hash).toBe("#/home");
   });
 
-  it("② 세션 2개 → 최신순(내림차순) 정렬", async () => {
+  it("② 세션 2개 → 최신순(내림차순) 정렬 + TM/e1RM 섹션 노출", async () => {
     await appendSession(session("s-older", { at: "2026-07-01T09:00:00Z", sessionId: "older" }));
     await appendSession(session("s-newer", { at: "2026-07-08T09:00:00Z", sessionId: "newer" }));
     render(<HistoryScreen />);
@@ -74,6 +84,10 @@ describe("HistoryScreen", () => {
     await waitFor(() => expect(screen.getByTestId("session-row-s-newer")).toBeInTheDocument());
     const rows = screen.getAllByRole("button").filter((el) => el.dataset.testid?.startsWith("session-row-"));
     expect(rows.map((r) => r.getAttribute("data-testid"))).toEqual(["session-row-s-newer", "session-row-s-older"]);
+
+    // 세션이 있으면 TM 이력/e1RM 추이 드롭다운 섹션이 노출된다.
+    expect(screen.getByText("TM 이력 / e1RM 추이")).toBeInTheDocument();
+    expect(screen.getByTestId("history-exercise-select")).toBeInTheDocument();
   });
 
   it("③ 클릭 → 세트 요약 펼침(exerciseId + weight×reps)", async () => {

@@ -153,12 +153,30 @@ describe("AnalyticsScreen", () => {
     expect(screen.getByTestId("analytics-validSets-back")).toHaveTextContent("2");
   });
 
-  it("⑤ 세션 없음 → 빈 상태 메시지", async () => {
+  it("⑤ 세션 없음 → 빈 상태 메시지 + 안내문, 외부 세션 추가 UI는 숨김", async () => {
     setStoreReady({ cycleIndex: 0, week: 0, dayOrdinal: 5 });
 
     render(<AnalyticsScreen />);
 
     expect(await screen.findByText("아직 분석할 세션 데이터가 없습니다")).toBeInTheDocument();
+    expect(screen.getByText("세션을 완료하면 부위별 주간 분석이 여기 표시됩니다")).toBeInTheDocument();
+
+    // 데이터 없을 때는 외부 세션 추가 UI(체크박스 10개 + 저장 버튼) 전체가 숨겨진다.
+    expect(screen.queryByText("외부 세션 추가")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("external-group-back")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "저장" })).not.toBeInTheDocument();
+  });
+
+  it("⑤b 버킷 존재 → 외부 세션 추가 UI 노출(회귀 방지 — ⑤과 반대 방향)", async () => {
+    await seedTwoWeeks();
+    setStoreReady({ cycleIndex: 0, week: 1, dayOrdinal: 5 });
+
+    render(<AnalyticsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId("analytics-week-label")).toHaveTextContent("2주차"));
+    expect(screen.getByText("외부 세션 추가")).toBeInTheDocument();
+    expect(screen.getByTestId("external-group-back")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "저장" })).toBeInTheDocument();
   });
 
   it("⑥ loadEventLog 실패 → role=alert 에러 표시", async () => {
