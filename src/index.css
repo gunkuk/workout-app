@@ -641,6 +641,35 @@ button {
   font-style: italic;
 }
 
+/* ---------- routine table (프로그램 설명 — 자동 생성 루틴 표) ---------- */
+
+.routine-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 12px;
+}
+
+.routine-table th {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  padding: 8px 6px;
+}
+
+.routine-table td {
+  font-size: 14px;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.routine-table .slot-label {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+
 .group-chip {
   display: inline-flex;
   align-items: center;

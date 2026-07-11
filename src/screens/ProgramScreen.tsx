@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { ProgramLibrary } from "../components/ProgramLibrary";
 import { useProgramStore } from "../store/programStore";
-import type { CyclePos } from "../domain/types.ts";
+import { exerciseInfo } from "../domain/exerciseLibrary";
+import type { CyclePos, ProgramDefinition, DaySpec, SlotSpec } from "../domain/types.ts";
 
 /**
  * 프로그램 탭(UI3) — 라이브러리를 하단 탭의 독립 화면으로 승격. 목록·전환·가져오기(파일/URL)·
@@ -31,6 +32,72 @@ function DescriptionText({ text }: { text: string }) {
         return <div key={i}>{line}</div>;
       })}
     </div>
+  );
+}
+
+type RoutineRow = { key: string; label: string; slots: SlotSpec[] };
+
+/**
+ * program.weeks에서 요일(ordinal)별 행을 만든다 — 같은 ordinal의 날이 모든 주에서 구조적으로
+ * 동일(JSON.stringify(slots) 동일)하면 한 행으로 병합(예: "월"), 주마다 다르면(예: kk-4day의
+ * 화 — 데드 볼륨↔헤비) 주차별로 한 행씩 쪼개 "화 (1주차)"처럼 라벨링한다. 손으로 쓴 텍스트가 아니라
+ * 실제 프로그램 정의에서 매번 다시 계산하므로 프로그램이 바뀌어도 표가 항상 실제 루틴과 일치한다.
+ */
+function buildRoutineRows(program: ProgramDefinition): RoutineRow[] {
+  const weeks = program.weeks;
+  const ordinals = Array.from(new Set(weeks.flatMap((w) => w.days.map((d) => d.ordinal)))).sort((a, b) => a - b);
+
+  const rows: RoutineRow[] = [];
+  for (const ordinal of ordinals) {
+    const daysAtOrdinal = weeks
+      .map((w) => w.days.find((d) => d.ordinal === ordinal))
+      .filter((d): d is DaySpec => d !== undefined);
+    const first = daysAtOrdinal[0];
+    if (!first) continue;
+    const identicalAcrossWeeks = daysAtOrdinal.every((d) => JSON.stringify(d.slots) === JSON.stringify(first.slots));
+
+    if (identicalAcrossWeeks) {
+      rows.push({ key: `${ordinal}`, label: first.weekdayHint ?? first.name, slots: first.slots });
+    } else {
+      daysAtOrdinal.forEach((d, weekIdx) => {
+        rows.push({
+          key: `${ordinal}-${weekIdx}`,
+          label: `${d.weekdayHint ?? d.name} (${weekIdx + 1}주차)`,
+          slots: d.slots,
+        });
+      });
+    }
+  }
+  return rows;
+}
+
+/** 프로그램 설명 카드 안에 얹는 자동 생성 루틴 표(Stage1-UI8) — buildRoutineRows 참고. */
+function RoutineTable({ program }: { program: ProgramDefinition }) {
+  const rows = buildRoutineRows(program);
+  return (
+    <table className="routine-table">
+      <thead>
+        <tr>
+          <th>요일</th>
+          <th>구성</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.key}>
+            <td>{row.label}</td>
+            <td>
+              {row.slots.map((slot) => (
+                <div key={slot.id}>
+                  <span className="slot-label">{slot.label}</span>{" "}
+                  {exerciseInfo(slot.exerciseId)?.name ?? slot.exerciseId} ×{slot.sets.length}
+                </div>
+              ))}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -138,15 +205,27 @@ export function ProgramScreen() {
   const instanceMode = useProgramStore((s) => s.instanceState?.mode);
   const [expanded, setExpanded] = useState(false);
 
+  // 설명이 없는 프로그램도 자동 생성 루틴 표는 항상 보여줘야 하므로, 카드 자체는 activeProgram만
+  // 있으면 렌더한다 — 토글 라벨만 설명 유무로 갈린다("설명 보기"는 기존 동작 그대로 보존).
+  const toggleLabel = description
+    ? (expanded ? "설명 접기 ▴" : "설명 보기 ▾")
+    : (expanded ? "루틴 표 접기 ▴" : "루틴 표 보기 ▾");
+
   return (
     <div className="screen">
       <h1 className="screen-title">프로그램</h1>
-      {description && (
+      {activeProgram && (
         <div className="settings-card program-description-card">
           <button type="button" className="btn btn-secondary" onClick={() => setExpanded((v) => !v)}>
-            {expanded ? "설명 접기 ▴" : "설명 보기 ▾"}
+            {toggleLabel}
           </button>
-          {expanded && <DescriptionText text={description} />}
+          {expanded && (
+            <>
+              <h4>운동루틴</h4>
+              <RoutineTable program={activeProgram} />
+              {description && <DescriptionText text={description} />}
+            </>
+          )}
         </div>
       )}
       {activeProgram && instanceMode === "rolling" && <FastForwardCard />}

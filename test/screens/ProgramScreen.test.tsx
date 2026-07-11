@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { useProgramStore } from "../../src/store/programStore";
 import { ProgramScreen } from "../../src/screens/ProgramScreen";
-import type { DecisionEvent } from "../../src/domain/types.ts";
+import type { DecisionEvent, ProgramDefinition } from "../../src/domain/types.ts";
 import { resetDb } from "../helpers/db";
 import { loadSeedProgram, seedOnboarded as seedOnboardedHelper } from "../helpers/seed";
 
@@ -89,5 +90,45 @@ describe("ProgramScreen", () => {
     expect(useProgramStore.getState().todayPos).toEqual({ cycleIndex: 1, week: 0, dayOrdinal: 3 });
 
     confirmSpy.mockRestore();
+  });
+
+  // Stage1-UI8 — 자동 생성 루틴 표(RoutineTable). kk4day-seed.test.mjs와 동일한 readFileSync 패턴으로
+  // kk-4day(2주 사이클, 화요일만 주차별 상이)를 로드해 병합·분기 로직을 검증한다.
+  it("⑦ 루틴 표 — kk-4day: 화요일은 주차별로 분기되고 월요일은 병합된다", async () => {
+    const kk4day = JSON.parse(readFileSync("programs/kk-4day.json", "utf8")) as ProgramDefinition;
+    const kk4dayDecisions: DecisionEvent[] = (["bench", "ohp", "squat", "deadlift"] as const).map((exerciseId) => ({
+      id: `seed-${exerciseId}`,
+      target: { kind: "tm", exerciseId },
+      kind: "seed",
+      value: TM[exerciseId],
+      at: at(1, 8),
+      schemaVersion: 1,
+    }));
+    await seedOnboardedHelper(kk4day, kk4dayDecisions, at(1, 8));
+    await useProgramStore.getState().load();
+
+    render(<ProgramScreen />);
+
+    const toggle = await screen.findByRole("button", { name: /루틴 표 보기|설명 보기/ });
+    fireEvent.click(toggle);
+
+    expect(screen.getAllByText(/티바 로우/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/데드리프트/).length).toBeGreaterThan(0);
+    expect(screen.getByText("화 (1주차)")).toBeInTheDocument();
+    expect(screen.getByText("화 (2주차)")).toBeInTheDocument();
+    expect(screen.getAllByText("월")).toHaveLength(1);
+  });
+
+  it("⑧ 루틴 표 — nsuns-5day(단일 주): 주차 접미사 없이 렌더된다", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+
+    render(<ProgramScreen />);
+
+    const toggle = await screen.findByRole("button", { name: /설명 보기/ });
+    fireEvent.click(toggle);
+
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.queryByText(/주차\)/)).not.toBeInTheDocument();
   });
 });
