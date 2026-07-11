@@ -5,7 +5,7 @@ import { exerciseInfo } from "../domain/exerciseLibrary";
 import { LineChart } from "../components/LineChart";
 import { nowISO } from "../lib/time";
 import { trainingWeekdays, buildAttendanceGrid, thisWeekSummary } from "./home/attendance";
-import { combinedT1Performance } from "./home/performance";
+import { combinedT1Performance, est1RM, liftSummary } from "./home/performance";
 import type { FoldInput } from "../domain/types.ts";
 
 export type HomeScreenProps = {
@@ -37,13 +37,16 @@ function parseOptionalNumber(s: string): number | undefined {
 
 /** Boostcamp 스타일 홈/대시보드 — 신규 랜딩 화면. 도메인 로직 변경 없이 기존 store/queries만 소비.
  *  UI5 T2 — 프로그램·오늘 카드 아래, 크로스핏 자유운동 카드(Stage1-UI6) 위에 체성분/출석·수행/
- *  부상·수행능력 카드 3종 추가. */
+ *  부상·수행능력 카드 3종 추가.
+ *  UI7 — Boostcamp풍 2컬럼 재배치(좌상 출석·좌하 몸무게·우측 tall 수행능력) + 수행능력↔프로그램
+ *  자동 커플링(TM↔환산 1RM, home/performance.ts의 est1RM·liftSummary). */
 export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps) {
   const activeProgram = useProgramStore((s) => s.activeProgram);
   const todayPos = useProgramStore((s) => s.todayPos);
   const instanceState = useProgramStore((s) => s.instanceState);
   const restDay = useProgramStore((s) => s.restDay);
   const todayPlan = useProgramStore((s) => s.todayPlan);
+  const tm = useProgramStore((s) => s.tm);
   const addBodyMetric = useProgramStore((s) => s.addBodyMetric);
   const addInjuryMutation = useProgramStore((s) => s.addInjury);
   const resolveInjuryMutation = useProgramStore((s) => s.resolveInjury);
@@ -140,13 +143,33 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
   }
 
   const weekdays = useMemo(() => trainingWeekdays(activeProgram), [activeProgram]);
+  // UI7 — 좌상 "출석" 카드는 Boostcamp풍 4주 미니 스트립(기존 buildAttendanceGrid의 weeksCount 파라미터
+  // 재사용, 신규 헬퍼 불필요).
   const grid = useMemo(
-    () => (foldInput ? buildAttendanceGrid(foldInput.sessions, foldInput.sets, weekdays, new Date()) : null),
+    () => (foldInput ? buildAttendanceGrid(foldInput.sessions, foldInput.sets, weekdays, new Date(), 4) : null),
     [foldInput, weekdays],
   );
   const summary = grid ? thisWeekSummary(grid) : null;
   const performancePoints = useMemo(() => (foldInput ? combinedT1Performance(foldInput) : []), [foldInput]);
   const activeInjuries = injuries?.filter((i) => !i.resolvedAt) ?? [];
+
+  const weightPoints = useMemo(
+    () => (bodyMetrics ?? []).filter((m) => m.weightKg !== undefined).map((m) => ({ at: m.at, value: m.weightKg! })),
+    [bodyMetrics],
+  );
+  const bodyFatPoints = useMemo(
+    () =>
+      (bodyMetrics ?? []).filter((m) => m.bodyFatPct !== undefined).map((m) => ({ at: m.at, value: m.bodyFatPct! })),
+    [bodyMetrics],
+  );
+  const latestWeight = weightPoints.at(-1)?.value;
+  const latestBodyFat = bodyFatPoints.at(-1)?.value;
+
+  // UI7 — 수행능력↔프로그램 자동 커플링: TM(store, foldState 결과) → liftSummary가 4대 T1 리프트별
+  // (TM, 환산 1RM, 실측 e1RM)을 묶어 "현재 무게" 리스트에 공급. 증량 그래프(TM합) 카드 동반 스탯은
+  // 같은 환산식(est1RM)을 합계에 재적용.
+  const liftRows = useMemo(() => (foldInput ? liftSummary(foldInput, tm) : []), [foldInput, tm]);
+  const estSum = performancePoints.length > 0 ? est1RM(performancePoints.at(-1)!.value) : undefined;
 
   if (!activeProgram) {
     return <div className="loading-state">로딩 중...</div>;
@@ -197,126 +220,148 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
         )}
       </div>
 
-      <div className="settings-card">
-        <h3>체성분</h3>
-        {bodyMetrics && bodyMetrics.length >= 2 ? (
-          <LineChart
-            points={bodyMetrics
-              .filter((m) => m.weightKg !== undefined)
-              .map((m) => ({ at: m.at, value: m.weightKg! }))}
-            series2={bodyMetrics
-              .filter((m) => m.bodyFatPct !== undefined)
-              .map((m) => ({ at: m.at, value: m.bodyFatPct! }))}
-            labels={{ s1: "몸무게", s2: "체지방" }}
-          />
-        ) : (
-          <p className="form-label">기록이 쌓이면 추이가 표시됩니다</p>
-        )}
-        <div className="session-complete-row" style={{ marginTop: 8 }}>
-          <input
-            aria-label="몸무게 입력"
-            type="number"
-            placeholder="몸무게 kg"
-            className="session-note-input"
-            value={weightInput}
-            onChange={(e) => setWeightInput(e.target.value)}
-          />
-          <input
-            aria-label="체지방 입력"
-            type="number"
-            placeholder="체지방 %"
-            className="session-note-input"
-            value={bodyFatInput}
-            onChange={(e) => setBodyFatInput(e.target.value)}
-          />
-          <button type="button" className="btn btn-secondary btn-compact" onClick={handleSaveBodyMetric}>
-            기록
-          </button>
-        </div>
-      </div>
-
-      <div className="settings-card">
-        <h3>출석·수행</h3>
-        {summary && (
-          <p className="form-label">
-            이번 주 {summary.completed}/{summary.total} 완료 · 수행률 {summary.percent}%
-          </p>
-        )}
-        {grid && (
-          <div className="attendance-strip">
-            {grid.weekdays.map((wd, rowIdx) => (
-              <div className="attendance-row" key={wd}>
-                <span className="attendance-row-label">{wd}</span>
-                {grid.weeks.map((week, colIdx) => {
-                  const status = week.cells[rowIdx];
-                  return (
-                    <span
-                      key={colIdx}
-                      data-testid={`attendance-cell-${rowIdx}-${colIdx}`}
-                      className={`attendance-cell${status === "complete" ? " is-complete" : status === "partial" ? " is-partial" : ""}`}
-                    />
-                  );
-                })}
+      {/* UI7 — Boostcamp풍 2컬럼 대시보드: 좌상 출석 / 좌하 몸무게 / 우측(tall) 수행능력. */}
+      <div className="dashboard-grid">
+        <div className="settings-card dashboard-cell dashboard-cell-attendance">
+          <h3>출석</h3>
+          {summary && (
+            <>
+              <div className="dashboard-stat-big">
+                {summary.completed}/{summary.total}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+              <p className="form-label">이번 주 · 수행률 {summary.percent}%</p>
+            </>
+          )}
+          {grid && (
+            <div className="attendance-strip attendance-strip-compact">
+              {grid.weekdays.map((wd, rowIdx) => (
+                <div className="attendance-row" key={wd}>
+                  <span className="attendance-row-label">{wd}</span>
+                  {grid.weeks.map((week, colIdx) => {
+                    const status = week.cells[rowIdx];
+                    return (
+                      <span
+                        key={colIdx}
+                        data-testid={`attendance-cell-${rowIdx}-${colIdx}`}
+                        className={`attendance-cell${status === "complete" ? " is-complete" : status === "partial" ? " is-partial" : ""}`}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-      <div className="settings-card">
-        <h3>부상·수행능력</h3>
-        {activeInjuries.length === 0 ? (
-          <p className="form-label">현재 부상 없음</p>
-        ) : (
-          <div>
-            {activeInjuries.map((inj) => (
-              <button
-                key={inj.id}
-                type="button"
-                className="injury-chip"
-                onClick={() => handleResolveInjury(inj)}
-              >
-                {inj.bodyPart} · {daysSince(inj.startedAt)}일째
-              </button>
-            ))}
-          </div>
-        )}
-        {injuryFormOpen ? (
-          <div className="form-field">
+        <div className="settings-card dashboard-cell dashboard-cell-weight">
+          <h3>몸무게</h3>
+          {latestWeight !== undefined && <div className="dashboard-stat-big">{latestWeight}kg</div>}
+          {latestBodyFat !== undefined && <p className="dashboard-stat-teal">체지방 {latestBodyFat}%</p>}
+          {bodyMetrics && bodyMetrics.length >= 2 ? (
+            <LineChart
+              points={weightPoints}
+              series2={bodyFatPoints}
+              labels={{ s1: "몸무게", s2: "체지방" }}
+              width={150}
+              height={90}
+            />
+          ) : (
+            <p className="form-label">기록이 쌓이면 추이가 표시됩니다</p>
+          )}
+          <div className="session-complete-row dashboard-quick-input" style={{ marginTop: 8 }}>
             <input
-              aria-label="부상 부위"
-              type="text"
-              placeholder="부위"
-              className="form-input"
-              value={injuryBodyPart}
-              onChange={(e) => setInjuryBodyPart(e.target.value)}
+              aria-label="몸무게 입력"
+              type="number"
+              placeholder="몸무게 kg"
+              className="session-note-input"
+              value={weightInput}
+              onChange={(e) => setWeightInput(e.target.value)}
             />
             <input
-              aria-label="부상 메모"
-              type="text"
-              placeholder="메모(선택)"
-              className="form-input"
-              style={{ marginTop: 6 }}
-              value={injuryNote}
-              onChange={(e) => setInjuryNote(e.target.value)}
+              aria-label="체지방 입력"
+              type="number"
+              placeholder="체지방 %"
+              className="session-note-input"
+              value={bodyFatInput}
+              onChange={(e) => setBodyFatInput(e.target.value)}
             />
-            <button
-              type="button"
-              className="btn btn-secondary btn-compact"
-              style={{ marginTop: 6 }}
-              onClick={handleSaveInjury}
-            >
-              저장
+            <button type="button" className="btn btn-secondary btn-compact" onClick={handleSaveBodyMetric}>
+              기록
             </button>
           </div>
-        ) : (
-          <button type="button" className="btn-ghost" onClick={() => setInjuryFormOpen(true)}>
-            + 부상 기록
-          </button>
-        )}
+        </div>
 
-        <h4>수행능력</h4>
-        <LineChart points={performancePoints} />
+        <div className="settings-card dashboard-cell dashboard-cell-performance">
+          <h3>수행능력</h3>
+          {activeInjuries.length === 0 ? (
+            <p className="form-label">현재 부상 없음</p>
+          ) : (
+            <div>
+              {activeInjuries.map((inj) => (
+                <button
+                  key={inj.id}
+                  type="button"
+                  className="injury-chip"
+                  onClick={() => handleResolveInjury(inj)}
+                >
+                  {inj.bodyPart} · {daysSince(inj.startedAt)}일째
+                </button>
+              ))}
+            </div>
+          )}
+          {injuryFormOpen ? (
+            <div className="form-field">
+              <input
+                aria-label="부상 부위"
+                type="text"
+                placeholder="부위"
+                className="form-input"
+                value={injuryBodyPart}
+                onChange={(e) => setInjuryBodyPart(e.target.value)}
+              />
+              <input
+                aria-label="부상 메모"
+                type="text"
+                placeholder="메모(선택)"
+                className="form-input"
+                style={{ marginTop: 6 }}
+                value={injuryNote}
+                onChange={(e) => setInjuryNote(e.target.value)}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary btn-compact"
+                style={{ marginTop: 6 }}
+                onClick={handleSaveInjury}
+              >
+                저장
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="btn-ghost" onClick={() => setInjuryFormOpen(true)}>
+              + 부상 기록
+            </button>
+          )}
+
+          <LineChart points={performancePoints} width={150} height={70} />
+          {estSum !== undefined && <p className="form-label">환산 1RM 합 ≈ {estSum}kg</p>}
+
+          {liftRows.length > 0 && (
+            <ul className="lift-summary-list">
+              {liftRows.map((row) => (
+                <li key={row.exerciseId} className="lift-summary-row">
+                  <span className="lift-summary-name">
+                    {row.name} {row.tm}
+                  </span>
+                  <span className="lift-summary-est">≈{row.est1RM}</span>
+                  {row.measuredE1RM !== undefined && (
+                    <span className="lift-summary-measured">측정 {row.measuredE1RM}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       <div className="settings-card">

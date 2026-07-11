@@ -192,14 +192,49 @@ describe("HomeScreen", () => {
 
     render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
 
-    const completeCell = await screen.findByTestId("attendance-cell-2-7"); // 목, 이번 주
-    const partialCell = screen.getByTestId("attendance-cell-3-7"); // 금, 이번 주
-    const noneCell = screen.getByTestId("attendance-cell-4-7"); // 토(오늘), 이번 주
+    // UI7 — 출석 카드가 8주 전체 그리드에서 4주 미니 스트립(Boostcamp풍 2컬럼 좌상 카드)으로 축소돼
+    // "이번 주" 열 인덱스가 7(8주 그리드의 마지막)에서 3(4주 그리드의 마지막)으로 이동.
+    const completeCell = await screen.findByTestId("attendance-cell-2-3"); // 목, 이번 주
+    const partialCell = screen.getByTestId("attendance-cell-3-3"); // 금, 이번 주
+    const noneCell = screen.getByTestId("attendance-cell-4-3"); // 토(오늘), 이번 주
 
     expect(completeCell).toHaveClass("is-complete");
     expect(partialCell).toHaveClass("is-partial");
     expect(partialCell).not.toHaveClass("is-complete");
     expect(noneCell).not.toHaveClass("is-complete");
     expect(noneCell).not.toHaveClass("is-partial");
+  });
+
+  // UI7 — 수행능력↔프로그램 자동 커플링(TM = 0.9 × 1RM 역산) 검증.
+
+  it("⑩ 수행능력 카드 — TM 105(벤치) → 환산 1RM ≈116.7 표시(측정값 없음)", async () => {
+    await onboard();
+    render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+
+    expect(await screen.findByText(/벤치프레스\s*105/)).toBeInTheDocument();
+    expect(screen.getByText("≈116.7")).toBeInTheDocument();
+    expect(screen.queryByText(/측정/)).not.toBeInTheDocument();
+  });
+
+  it("⑪ 실측 AMRAP topSet 존재 → '측정 {e1RM}' 행이 TM·환산 1RM과 함께 표시", async () => {
+    await onboard();
+    await appendSet({
+      id: "measured-topset",
+      sessionId: "measured-session",
+      exerciseId: "bench",
+      targetWeight: 100,
+      targetReps: 1,
+      actualWeight: 100,
+      actualReps: 3,
+      amrapRole: "topSet",
+      completedAt: at(3),
+      schemaVersion: 1,
+    });
+
+    render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+
+    expect(await screen.findByText(/벤치프레스\s*105/)).toBeInTheDocument();
+    expect(screen.getByText("≈116.7")).toBeInTheDocument();
+    expect(screen.getByText("측정 110")).toBeInTheDocument(); // epley(100,3) = 110
   });
 });
