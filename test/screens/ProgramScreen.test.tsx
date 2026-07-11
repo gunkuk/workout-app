@@ -57,4 +57,37 @@ describe("ProgramScreen", () => {
     expect(screen.getByText(/왜 T2는 저중량 고볼륨/)).toBeInTheDocument();
     expect(screen.getByText(/T1 = 강도/)).toBeInTheDocument();
   });
+
+  // Stage1-UI7 — 진행 위치 조정 카드(rolling 모드 전용).
+  it("⑤ 진행 위치 카드 — 현재 위치 라인과 이동 버튼이 렌더된다", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+
+    render(<ProgramScreen />);
+
+    expect(await screen.findByText(/다음 세션: 1주차 화 — 벤치 volume \+ OHP/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "이 위치로 이동" })).toBeInTheDocument();
+  });
+
+  it("⑥ 주차·요일 선택 후 이동 → 확인 다이얼로그 수락 시 커서가 이동하고 완료 메시지가 뜬다", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<ProgramScreen />);
+    await screen.findByText(/다음 세션:/);
+
+    const weekInput = screen.getByLabelText("주차") as HTMLInputElement;
+    fireEvent.change(weekInput, { target: { value: "2" } });
+    const daySelect = screen.getByLabelText("요일") as HTMLSelectElement;
+    fireEvent.change(daySelect, { target: { value: "3" } }); // 목 — OHP + 인클라인
+
+    fireEvent.click(screen.getByRole("button", { name: "이 위치로 이동" }));
+
+    expect(confirmSpy).toHaveBeenCalled();
+    await screen.findByText("이동 완료.");
+    expect(useProgramStore.getState().todayPos).toEqual({ cycleIndex: 1, week: 0, dayOrdinal: 3 });
+
+    confirmSpy.mockRestore();
+  });
 });

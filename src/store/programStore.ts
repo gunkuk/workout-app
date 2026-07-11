@@ -20,10 +20,11 @@ import {
 import type { ExternalSessionRecord } from "../storage/db";
 import type { BodyMetric, InjuryLog, SessionNote } from "../storage/trackingTypes";
 import { foldState } from "../domain/fold";
-import { rollingCyclePos, calendarCyclePos } from "../domain/cyclePos";
+import { rollingCyclePos, calendarCyclePos, nextCyclePos } from "../domain/cyclePos";
 import { buildWorkoutPlan, type WorkoutPlan } from "../domain/programEngine";
 import { USER_PLATES } from "../lib/plateConfig";
 import { programKey } from "../domain/foldSupport";
+import { sessionIdFor } from "../domain/sessionId";
 import type {
   ProgramDefinition,
   ProgramInstanceState,
@@ -68,6 +69,12 @@ export type ProgramStoreState = {
   importProgram(program: ProgramDefinition): Promise<void>;
   /** 라이브러리 전환 — 새 InstanceState 설정 후 재fold. 과거 이력(SetRecord 등)은 불변(Stage1-C3 T2, 스펙 §2-7). */
   switchProgram(instanceState: ProgramInstanceState): Promise<void>;
+  /** 진행 위치 조정(Stage1-UI7) — 롤링 커서를 target까지 빠르게 감는다. 현재~target(제외) 사이 모든
+   * 위치에 SetRecord 없는 SessionCompleted(status:"completed")를 append(→ 판정 no-op, TM 불변) —
+   * 실제로 훈련했지만 앱에 기록 안 한 기간을 빈 완료로 채우는 것. rolling 모드 전용(calendar는
+   * 날짜로 커서가 정해져 조정 개념이 없음) — 아니면 throw. target이 이미 현재 위치면 no-op(아무 것도
+   * 안 하고 반환). target 도달 불가(예: 프로그램에 없는 dayOrdinal)면 아무 것도 append하지 않고 throw. */
+  fastForwardTo(target: CyclePos): Promise<void>;
   /** 외부(크로스핏 등) 세션 기록 후 재fold(Stage1-C3 T4) — programStore 파생 상태엔 직접 영향 없지만
    * 다른 mutation과 동일하게 기록 후 load()로 일관 새로고침한다. */
   recordExternalSession(rec: ExternalSessionRecord): Promise<void>;
@@ -223,6 +230,51 @@ export const useProgramStore = create<ProgramStoreState>()((set, get) => ({
 
   async switchProgram(instanceState) {
     await setInstanceState(instanceState);
+    await get().load();
+  },
+
+  async fastForwardTo(target) {
+    const { activeProgram, instanceState } = get();
+    if (!activeProgram || !instanceState || instanceState.mode !== "rolling") {
+      throw new Error("진행 위치 조정은 롤링 모드에서 활성 프로그램이 있을 때만 가능합니다.");
+    }
+    const program = activeProgram;
+
+    // 현재 커서는 저장된 store 상태가 아니라 이벤트 로그에서 다시 계산 — load() 여부와 무관하게 정확.
+    const input = await loadFoldInput();
+    const current = rollingCyclePos(program, input.sessions);
+
+    const samePos = (a: CyclePos, b: CyclePos) =>
+      a.cycleIndex === b.cycleIndex && a.week === b.week && a.dayOrdinal === b.dayOrdinal;
+
+    if (samePos(current, target)) return;
+
+    const MAX_STEPS = 200;
+    const base = Date.now();
+    const records: SessionCompleted[] = [];
+    let cursor = current;
+    while (!samePos(cursor, target)) {
+      if (records.length >= MAX_STEPS) {
+        throw new Error("목표 위치로 이동할 수 없습니다 — 프로그램에 없는 위치(요일)인지 확인해주세요.");
+      }
+      records.push({
+        id: crypto.randomUUID(),
+        // at을 1ms씩 증가시켜 (at,id) 정렬이 항상 이 순회 순서와 일치하게 한다 — 같은 tick에
+        // 여러 건을 append하면 sortByAtId의 id(랜덤 UUID) tie-break로 순서가 뒤섞일 수 있음.
+        at: new Date(base + records.length).toISOString(),
+        sessionId: sessionIdFor(program.id, program.version, cursor),
+        cyclePos: cursor,
+        status: "completed",
+        programId: program.id,
+        programVersion: program.version,
+        schemaVersion: 1,
+      });
+      cursor = nextCyclePos(program, cursor);
+    }
+
+    for (const rec of records) {
+      await appendSession(rec);
+    }
     await get().load();
   },
 
