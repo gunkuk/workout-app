@@ -30,6 +30,15 @@ describe("exerciseLibrary", () => {
     );
   });
 
+  it("신규 6종(tbarRow·pullup·backExtension·hipThrust·lateralRaise·legRaise)이 올바른 groups로 조회됨", () => {
+    expect(exerciseInfo("tbarRow")?.groups).toEqual(["back"]);
+    expect(exerciseInfo("pullup")?.groups).toEqual(["back", "biceps"]);
+    expect(exerciseInfo("backExtension")?.groups).toEqual(["hamstrings", "glutes"]);
+    expect(exerciseInfo("hipThrust")?.groups).toEqual(["glutes"]);
+    expect(exerciseInfo("lateralRaise")?.groups).toEqual(["shoulders"]);
+    expect(exerciseInfo("legRaise")?.groups).toEqual(["core"]);
+  });
+
   it("모든 항목 groups 1~3개·유효 MuscleGroup", () => {
     const validGroups = new Set([
       "chest",

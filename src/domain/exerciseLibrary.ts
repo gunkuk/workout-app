@@ -88,6 +88,36 @@ export const EXERCISES: Record<string, ExerciseInfo> = {
     name: "리어델트 플라이",
     groups: ["shoulders"],
   },
+  tbarRow: {
+    id: "tbarRow",
+    name: "티바 로우",
+    groups: ["back"],
+  },
+  pullup: {
+    id: "pullup",
+    name: "풀업",
+    groups: ["back", "biceps"],
+  },
+  backExtension: {
+    id: "backExtension",
+    name: "백 익스텐션",
+    groups: ["hamstrings", "glutes"],
+  },
+  hipThrust: {
+    id: "hipThrust",
+    name: "힙 쓰러스트",
+    groups: ["glutes"],
+  },
+  lateralRaise: {
+    id: "lateralRaise",
+    name: "레터럴 레이즈",
+    groups: ["shoulders"],
+  },
+  legRaise: {
+    id: "legRaise",
+    name: "행잉 레그레이즈",
+    groups: ["core"],
+  },
 };
 
 /** 운동 정보 조회 */

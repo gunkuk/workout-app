@@ -22,7 +22,7 @@ import type { BodyMetric, InjuryLog, SessionNote } from "../storage/trackingType
 import { foldState } from "../domain/fold";
 import { rollingCyclePos, calendarCyclePos } from "../domain/cyclePos";
 import { buildWorkoutPlan, type WorkoutPlan } from "../domain/programEngine";
-import { DEFAULT_PLATES } from "../domain/plates";
+import { USER_PLATES } from "../lib/plateConfig";
 import { programKey } from "../domain/foldSupport";
 import type {
   ProgramDefinition,
@@ -157,7 +157,7 @@ export const useProgramStore = create<ProgramStoreState>()((set, get) => ({
         week: cursor.week,
         dayOrdinal: cursor.candidateDayOrdinal,
       };
-      const todayPlan = buildWorkoutPlan(activeProgram, todayPos, folded.tm, folded.accessories, DEFAULT_PLATES);
+      const todayPlan = buildWorkoutPlan(activeProgram, todayPos, folded.tm, folded.accessories, USER_PLATES);
       set({
         status: "ready",
         activeProgram,
@@ -173,7 +173,7 @@ export const useProgramStore = create<ProgramStoreState>()((set, get) => ({
     }
 
     const todayPos = rollingCyclePos(activeProgram, input.sessions);
-    const todayPlan = buildWorkoutPlan(activeProgram, todayPos, folded.tm, folded.accessories, DEFAULT_PLATES);
+    const todayPlan = buildWorkoutPlan(activeProgram, todayPos, folded.tm, folded.accessories, USER_PLATES);
 
     set({
       status: "ready",

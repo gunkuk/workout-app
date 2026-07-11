@@ -4,7 +4,7 @@ import { SetRow } from "../components/SetRow";
 import { ProposalCard } from "../components/ProposalCard";
 import { ExerciseSwap } from "../components/ExerciseSwap";
 import { RestTimer } from "../components/RestTimer";
-import { DEFAULT_PLATES } from "../domain/plates";
+import { USER_PLATES } from "../lib/plateConfig";
 import { exerciseInfo } from "../domain/exerciseLibrary";
 import { useTodaySession, STEP_WEIGHT } from "./today/useTodaySession";
 import { setIdFor } from "./today/sessionId";
@@ -166,7 +166,7 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
                           recorded={recorded[id]}
                           stepWeight={STEP_WEIGHT}
                           index={i + 1}
-                          cfg={DEFAULT_PLATES}
+                          cfg={USER_PLATES}
                           onComplete={(w, r) => handleComplete(id, slot, s, w, r, swappedSlots[slot.slotId])}
                           onCorrect={(w, r) => handleCorrect(id, w, r)}
                         />

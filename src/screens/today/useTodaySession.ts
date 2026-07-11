@@ -3,14 +3,15 @@ import { useProgramStore } from "../../store/programStore";
 import { loadEventLog, type SessionNote } from "../../store/queries";
 import { nowISO } from "../../lib/time";
 import { applyCorrections } from "../../domain/corrections";
-import { stepOf, DEFAULT_PLATES } from "../../domain/plates";
+import { stepOf } from "../../domain/plates";
+import { USER_PLATES } from "../../lib/plateConfig";
 import { acquireWakeLock, type WakeLockHandle } from "../../lib/wakeLock";
 import type { PlannedSlot, PlannedSet } from "../../domain/programEngine";
 import type { SetRecord, SessionCompleted, CorrectionRecord } from "../../domain/types.ts";
 import { sessionIdFor, setIdFor } from "./sessionId";
 import { deriveEffectiveSlots, isSessionComplete, LIGHT_DEADLIFT_SLOT_ID, type EffectiveSlot } from "./derive";
 
-export const STEP_WEIGHT = stepOf(DEFAULT_PLATES);
+export const STEP_WEIGHT = stepOf(USER_PLATES);
 
 export type UseTodaySessionResult = {
   recorded: Record<string, SetRecord>;
@@ -313,7 +314,7 @@ export function useTodaySession(onSessionComplete?: () => void): UseTodaySession
   }, [sessionId, recorded, recordCorrection]);
 
   const effectiveSlots = todayPlan
-    ? deriveEffectiveSlots(todayPlan.slots, swappedSlots, tm, DEFAULT_PLATES)
+    ? deriveEffectiveSlots(todayPlan.slots, swappedSlots, tm, USER_PLATES)
     : [];
 
   const allWorkSetsComplete =

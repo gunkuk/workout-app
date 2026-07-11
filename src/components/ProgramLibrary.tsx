@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useProgramStore } from "../store/programStore";
 import { listPrograms } from "../store/queries";
 import { parseAndValidateProgram, fetchProgramFromUrl } from "../lib/programImport";
+import { listBundledPrograms } from "../lib/bundledPrograms";
 import { validateAnchor } from "../domain/cyclePos";
 import type { ProgramDefinition, ProgramInstanceState } from "../domain/types.ts";
 
@@ -23,6 +24,8 @@ export function ProgramLibrary() {
   const [urlValue, setUrlValue] = useState("");
   const [busy, setBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // 내장 프로그램 목록 — 검증 결과는 요청마다 바뀌지 않으므로 1회만 계산.
+  const [bundledPrograms] = useState(() => listBundledPrograms());
 
   // 모드 설정(Stage1-C3 T3) — 현재 활성 프로그램의 rolling↔calendar 전환.
   const [modeSelection, setModeSelection] = useState<"rolling" | "calendar">("rolling");
@@ -69,6 +72,16 @@ export function ProgramLibrary() {
       await handleImportResult(text);
     } catch (e) {
       setErrors([e instanceof Error ? e.message : String(e)]);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAddBundled(program: ProgramDefinition) {
+    setBusy(true);
+    try {
+      await importProgram(program);
+      await refresh();
     } finally {
       setBusy(false);
     }
@@ -126,7 +139,7 @@ export function ProgramLibrary() {
           </ul>
         </div>
       )}
-      <ul>
+      <ul data-testid="program-library-list">
         {programs.map((program) => {
           const isActive = activeProgram?.id === program.id && activeProgram?.version === program.version;
           return (
@@ -141,6 +154,31 @@ export function ProgramLibrary() {
           );
         })}
       </ul>
+      <section>
+        <h3>내장 프로그램</h3>
+        <ul data-testid="bundled-programs-list">
+          {bundledPrograms.map((bp) => {
+            const isAdded = programs.some((p) => p.id === bp.id && p.version === bp.version);
+            return (
+              <li key={bp.id}>
+                {bp.name}
+                {isAdded ? (
+                  <strong>추가됨</strong>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => handleAddBundled(bp.load())}
+                    disabled={busy}
+                  >
+                    라이브러리에 추가
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </section>
       <div className="form-field">
         <label className="form-label">
           파일에서 가져오기
