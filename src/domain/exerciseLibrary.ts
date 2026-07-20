@@ -118,6 +118,21 @@ export const EXERCISES: Record<string, ExerciseInfo> = {
     name: "행잉 레그레이즈",
     groups: ["core"],
   },
+  dumbbellRow: {
+    id: "dumbbellRow",
+    name: "덤벨로우",
+    groups: ["back", "biceps"],
+  },
+  bulgarianSplitSquat: {
+    id: "bulgarianSplitSquat",
+    name: "불가리안 스플릿 스쿼트",
+    groups: ["quads", "glutes"],
+  },
+  oneArmRow: {
+    id: "oneArmRow",
+    name: "원암 덤벨로우",
+    groups: ["back", "biceps"],
+  },
 };
 
 /** 운동 정보 조회 */

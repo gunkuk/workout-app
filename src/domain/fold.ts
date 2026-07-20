@@ -7,6 +7,8 @@ import { programKey, capKey, daySpecFor, judgingSetsForSlot, lastSetOf } from ".
 import { judgeTopSet } from "./rules/nsunsTopSet";
 import { judgeT2 } from "./rules/t2LastSet";
 import { applyAccessorySession, type DoubleProgressionParams } from "./rules/doubleProgression";
+import { judgeLinearTopSet } from "./rules/linearTopSet";
+import { applyRepLadderSession, type RepLadderParams } from "./rules/repLadder";
 
 type TimelineItem =
   | { type: "decision"; at: string; id: string; ev: DecisionEvent }
@@ -146,6 +148,48 @@ export function foldState(input: FoldInput): FoldState {
             options: [state.weight - p.weightStep],
           });
         }
+      } else if (slot.progressionRuleId === "linearTopSet") {
+        const ts = slotSets.find((s) => s.amrapRole === "topSet");
+        if (!ts) continue;
+        const key = `tm:${slot.exerciseId}`;
+        const ck = capKey(key, pos);
+        if (caps.has(ck)) continue;
+        caps.add(ck);
+        const current = tm[slot.exerciseId];
+        if (current === undefined) continue;
+        const minReps = Number(params["minReps"]);
+        const outcome = judgeLinearTopSet(ts.actualReps, {
+          increment: Number(params["increment"]),
+          minReps,
+        });
+        if (outcome.kind === "auto") {
+          tm[slot.exerciseId] = current + outcome.delta;
+        } else {
+          proposals.set(key, {
+            type: "tmDeload",
+            target: { kind: "tm", exerciseId: slot.exerciseId },
+            label: `탑세트 ${ts.actualReps}렙(<${minReps}) — 동결(기본) 또는 −5%(반올림)`,
+            sourceSetRecordId: ts.id,
+            options: [current, Math.round((current * 0.95) / 2.5) * 2.5],
+          });
+        }
+      } else if (slot.progressionRuleId === "repLadder") {
+        const key = `acc:${slot.id}`;
+        const ck = capKey(key, pos);
+        if (caps.has(ck)) continue;
+        const p = params as unknown as RepLadderParams;
+        if (slotSets.length < p.sets) continue;
+        caps.add(ck);
+        const last = lastSetOf(slotSets)!;
+        const prev: AccessoryState =
+          accessories[slot.id] ??
+          { weight: last.actualWeight, targetReps: p.sets * p.repMin, missStreak: 0, grace: false };
+        const { state } = applyRepLadderSession(
+          prev,
+          slotSets.map((s) => ({ actualReps: s.actualReps })),
+          p,
+        );
+        accessories[slot.id] = state;
       }
     }
   }

@@ -3,6 +3,7 @@ import { stepOf, roundToStep, type PlateConfig } from "./plates";
 import { generateWarmup } from "./warmup";
 import { exerciseInfo } from "./exerciseLibrary";
 import { daySpecFor } from "./foldSupport";
+import { deriveRepLadderTargets, type RepLadderParams } from "./rules/repLadder";
 
 /** 계획된 한 세트 — 워밍업·작업세트 공통 ("공유 타입" 절, T5) */
 export type PlannedSet = {
@@ -36,7 +37,8 @@ function buildSet(
   tm: Record<string, number>,
   accessoryState: AccessoryState | undefined,
   cfg: PlateConfig,
-  markMissingTM: () => void
+  markMissingTM: () => void,
+  repLadderReps?: number
 ): PlannedSet {
   const amrap = setSpec.amrapRole ? { amrapRole: setSpec.amrapRole } : {};
 
@@ -55,7 +57,8 @@ function buildSet(
   if (!accessoryState) {
     return { weight: null, reps: setSpec.reps, setType: "work", ...amrap };
   }
-  return { weight: accessoryState.weight, reps: accessoryState.targetReps, setType: "work", ...amrap };
+  const reps = repLadderReps ?? accessoryState.targetReps;
+  return { weight: accessoryState.weight, reps, setType: "work", ...amrap };
 }
 
 /** 첫 세트 load.kind === "pctOfTM"인 슬롯만 워밍업 생성. tracked·missingTM 슬롯은 []. */
@@ -84,10 +87,16 @@ function buildSlot(
   const hasTracked = slot.sets.some((s) => s.load.kind === "tracked");
   const needsInit = hasTracked && !accessoryState;
 
-  const sets = slot.sets.map((setSpec) =>
+  // repLadder: per-set 목표를 총합(targetReps)에서 파생 — doubleProgression 경로(uniform reps)는 그대로 둔다.
+  const repLadderTargets =
+    slot.progressionRuleId === "repLadder" && accessoryState
+      ? deriveRepLadderTargets(accessoryState.targetReps, slot.progressionParams as unknown as RepLadderParams)
+      : null;
+
+  const sets = slot.sets.map((setSpec, i) =>
     buildSet(setSpec, slot, tm, accessoryState, cfg, () => {
       missingTM = true;
-    })
+    }, repLadderTargets ? repLadderTargets[i] : undefined)
   );
 
   const warmups = computeWarmups(slot, sets, missingTM, cfg);
