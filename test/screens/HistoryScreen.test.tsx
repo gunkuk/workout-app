@@ -2,7 +2,14 @@ import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, within, cleanup } from "@testing-library/react";
 import { db } from "../../src/storage/db";
-import { appendSession, appendSet, appendDecision, appendCorrection, upsertSessionNote } from "../../src/storage/eventStore";
+import {
+  appendSession,
+  appendSet,
+  appendDecision,
+  appendCorrection,
+  upsertSessionNote,
+  startActivitySegment,
+} from "../../src/storage/eventStore";
 import { HistoryScreen } from "../../src/screens/HistoryScreen";
 import * as queries from "../../src/store/queries";
 import type { SessionCompleted, SetRecord, DecisionEvent } from "../../src/domain/types.ts";
@@ -63,6 +70,7 @@ beforeEach(async () => {
     db.decisions.clear(),
     db.corrections.clear(),
     db.sessionNotes.clear(),
+    db.activitySegments.clear(),
   ]);
 });
 
@@ -250,6 +258,59 @@ describe("HistoryScreen", () => {
     fireEvent.click(row);
     await screen.findByTestId("session-sets-s1");
     expect(screen.queryByTestId("session-note-s1")).not.toBeInTheDocument();
+  });
+
+  it("⑬(UI11) 활동 구간 breakdown — 펼치면 세션 총 시간 + 구간별(kind) 합산 표시", async () => {
+    await appendSession(session("s1", { sessionId: "sess1" }));
+    await startActivitySegment({
+      id: "seg1",
+      sessionId: "sess1",
+      kind: "stretch",
+      startedAt: "2026-07-10T08:50:00Z",
+      endedAt: "2026-07-10T09:00:00Z",
+      durationSec: 600, // 10분
+      schemaVersion: 1,
+    });
+    await startActivitySegment({
+      id: "seg2",
+      sessionId: "sess1",
+      kind: "workout",
+      startedAt: "2026-07-10T09:00:00Z",
+      endedAt: "2026-07-10T09:32:10Z",
+      durationSec: 1930, // 32분10초
+      schemaVersion: 1,
+    });
+    // 다른 세션 소속 구간은 이 세션의 breakdown에 섞이면 안 됨.
+    await startActivitySegment({
+      id: "seg-other",
+      sessionId: "other-session",
+      kind: "running",
+      startedAt: "2026-07-10T10:00:00Z",
+      endedAt: "2026-07-10T10:10:00Z",
+      durationSec: 600,
+      schemaVersion: 1,
+    });
+
+    render(<HistoryScreen />);
+    const row = await screen.findByTestId("session-row-s1");
+    expect(screen.queryByTestId("session-activity-s1")).not.toBeInTheDocument();
+
+    fireEvent.click(row);
+
+    const activity = await screen.findByTestId("session-activity-s1");
+    expect(within(activity).getByText("총 42:10")).toBeInTheDocument(); // 600+1930=2530초=42:10
+    expect(within(activity).getByText(/스트레칭 10:00/)).toBeInTheDocument();
+    expect(within(activity).getByText(/운동 32:10/)).toBeInTheDocument();
+    expect(within(activity).queryByText(/러닝/)).not.toBeInTheDocument();
+  });
+
+  it("⑬-2(UI11) 활동 구간 없는 세션 — 펼쳐도 breakdown 요소 렌더 안 함", async () => {
+    await appendSession(session("s1", { sessionId: "sess1" }));
+    render(<HistoryScreen />);
+    const row = await screen.findByTestId("session-row-s1");
+    fireEvent.click(row);
+    await screen.findByTestId("session-sets-s1");
+    expect(screen.queryByTestId("session-activity-s1")).not.toBeInTheDocument();
   });
 
   it("⑫ 취소(revoked)된 세션(Stage1-UI9, 진행 위치 뒤로 이동) — 목록에서 제외되고 나머지는 그대로 노출", async () => {

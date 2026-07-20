@@ -421,4 +421,62 @@ describe("TodayScreen", () => {
     });
     expect(await db.sessionNotes.toArray()).toHaveLength(0);
   });
+
+  // UI11 — 활동 구간 타이머: 칩 탭으로 시작 → 종료 탭 → 오늘 세션의 결정론적 sessionId로 연결된
+  // ActivitySegment가 기록되는지.
+
+  it("⑮ 활동 구간 타이머 — 칩 탭으로 시작 → 종료 탭 → activitySegments에 sessionId 연결 기록", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+    render(<TodayScreen />);
+    await waitForWarmupSettled();
+
+    const timer = screen.getByTestId("activity-timer");
+    fireEvent.click(within(timer).getByRole("button", { name: "스트레칭" }));
+
+    await screen.findByTestId("activity-timer-elapsed");
+    fireEvent.click(within(timer).getByRole("button", { name: "종료" }));
+
+    await waitFor(async () => {
+      const segs = await db.activitySegments.toArray();
+      expect(segs).toHaveLength(1);
+      expect(segs[0]!.kind).toBe("stretch");
+      expect(segs[0]!.endedAt).toBeDefined();
+      expect(segs[0]!.durationSec).toBeGreaterThanOrEqual(0);
+      expect(segs[0]!.sessionId).toBeTruthy();
+    });
+  });
+
+  // UI11 — 세트별 소요시간: 같은 슬롯의 첫 세트는 직전 완료 시각(armed)이 없어 SetTiming을 기록하지
+  // 않고(허구 시작시각 생성 금지), 두 번째 세트부터는 직전 세트 완료~이 세트 완료 간격을 기록한다.
+
+  it("⑯ 세트별 소요시간 — 슬롯 첫 세트는 SetTiming 미기록, 두 번째 세트부터 기록 + 화면에 muted 표시", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+    const { container } = render(<TodayScreen />);
+    await waitForWarmupSettled();
+
+    const rows = rowsForLabel(container, "T1");
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+
+    fireEvent.click(rows[0]!);
+    await waitFor(() => expect(rows[0]!.querySelector('[aria-label="완료됨"]')).toBeTruthy());
+    const firstSetId = rows[0]!.getAttribute("data-testid")!.replace("setrow-", "");
+
+    // 첫 세트는 armed 시작시각이 없으므로 SetTiming이 생기지 않아야 함.
+    await new Promise((r) => setTimeout(r, 0));
+    expect((await db.setTimings.toArray()).find((t) => t.id === firstSetId)).toBeUndefined();
+    expect(screen.queryByTestId(`set-duration-${firstSetId}`)).not.toBeInTheDocument();
+
+    fireEvent.click(rows[1]!);
+    await waitFor(() => expect(rows[1]!.querySelector('[aria-label="완료됨"]')).toBeTruthy());
+    const secondSetId = rows[1]!.getAttribute("data-testid")!.replace("setrow-", "");
+
+    await waitFor(async () => {
+      const timing = (await db.setTimings.toArray()).find((t) => t.id === secondSetId);
+      expect(timing).toBeDefined();
+      expect(timing!.durationSec).toBeGreaterThanOrEqual(0);
+    });
+    expect(await screen.findByTestId(`set-duration-${secondSetId}`)).toBeInTheDocument();
+  });
 });

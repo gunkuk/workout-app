@@ -20,6 +20,10 @@ import {
   listSessionNotes,
   upsertExerciseComment,
   listExerciseComments,
+  startActivitySegment,
+  listActivitySegments,
+  upsertSetTiming,
+  listSetTimings,
 } from "../../src/storage/eventStore";
 import { programKey } from "../../src/domain/foldSupport";
 import {
@@ -76,6 +80,8 @@ const EMPTY_SNAPSHOT: BackupSnapshot = {
   injuries: [],
   sessionNotes: [],
   exerciseComments: [],
+  activitySegments: [],
+  setTimings: [],
 };
 
 const ORIGINAL_UA = navigator.userAgent;
@@ -125,6 +131,23 @@ async function seedFullSnapshotData(): Promise<void> {
   await addInjury({ id: "inj1", bodyPart: "무릎", startedAt: "2026-07-05T00:00:00Z", schemaVersion: 1 });
   await upsertSessionNote({ id: "sn1", sessionId: "s1", note: "오늘 컨디션 좋음", at: "2026-07-10T09:35:00Z", schemaVersion: 1 });
   await upsertExerciseComment({ id: "ec1", exerciseId: "bench", note: "그립 좁게", at: "2026-07-10T09:36:00Z", schemaVersion: 1 });
+  await startActivitySegment({
+    id: "as1",
+    sessionId: "s1",
+    kind: "stretch",
+    startedAt: "2026-07-10T08:50:00Z",
+    endedAt: "2026-07-10T09:00:00Z",
+    durationSec: 600,
+    schemaVersion: 1,
+  });
+  await upsertSetTiming({
+    id: "set1",
+    sessionId: "s1",
+    durationSec: 90,
+    startedAt: "2026-07-10T09:00:00Z",
+    endedAt: "2026-07-10T09:01:30Z",
+    schemaVersion: 1,
+  });
   await setInstanceState({
     programId: "p1",
     programVersion: 1,
@@ -215,6 +238,49 @@ describe("backup", () => {
     expect(await listInjuries()).toEqual([]);
     expect(await listSessionNotes()).toEqual([]);
     expect(await listExerciseComments()).toEqual([]);
+  });
+
+  it("⑨(UI11) 백업 왕복에 activitySegments·setTimings 포함", async () => {
+    await seedFullSnapshotData();
+    const snapshot = await exportSnapshot();
+    expect(snapshot.activitySegments).toEqual([
+      {
+        id: "as1",
+        sessionId: "s1",
+        kind: "stretch",
+        startedAt: "2026-07-10T08:50:00Z",
+        endedAt: "2026-07-10T09:00:00Z",
+        durationSec: 600,
+        schemaVersion: 1,
+      },
+    ]);
+    expect(snapshot.setTimings).toEqual([
+      {
+        id: "set1",
+        sessionId: "s1",
+        durationSec: 90,
+        startedAt: "2026-07-10T09:00:00Z",
+        endedAt: "2026-07-10T09:01:30Z",
+        schemaVersion: 1,
+      },
+    ]);
+
+    await resetDb();
+    expect(await listActivitySegments()).toEqual([]);
+    expect(await listSetTimings()).toEqual([]);
+
+    await importSnapshot(snapshot);
+    expect(await listActivitySegments()).toEqual(snapshot.activitySegments);
+    expect(await listSetTimings()).toEqual(snapshot.setTimings);
+  });
+
+  it("⑨-2(UI11) activitySegments·setTimings 필드 없는 옛 백업도 가져오기 성공(하위호환, `?? []`)", async () => {
+    const legacySnapshot = { ...EMPTY_SNAPSHOT } as Partial<BackupSnapshot>;
+    delete legacySnapshot.activitySegments;
+    delete legacySnapshot.setTimings;
+    await expect(importSnapshot(legacySnapshot)).resolves.not.toThrow();
+    expect(await listActivitySegments()).toEqual([]);
+    expect(await listSetTimings()).toEqual([]);
   });
 
   it("⑦(Stage1-C3 T4) 백업 왕복에 externalSessions 포함", async () => {

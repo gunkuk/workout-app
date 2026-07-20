@@ -16,9 +16,13 @@ import {
   addInjury as addInjuryRow,
   resolveInjury as resolveInjuryRow,
   upsertSessionNote,
+  listActivitySegments,
+  startActivitySegment as startActivitySegmentRow,
+  endActivitySegment as endActivitySegmentRow,
+  upsertSetTiming as upsertSetTimingRow,
 } from "../storage/eventStore";
 import type { ExternalSessionRecord } from "../storage/db";
-import type { BodyMetric, InjuryLog, SessionNote } from "../storage/trackingTypes";
+import type { BodyMetric, InjuryLog, SessionNote, ActivitySegment, SetTiming } from "../storage/trackingTypes";
 import { foldState } from "../domain/fold";
 import { rollingCyclePos, calendarCyclePos, nextCyclePos } from "../domain/cyclePos";
 import { buildWorkoutPlan, type WorkoutPlan } from "../domain/programEngine";
@@ -93,6 +97,14 @@ export type ProgramStoreState = {
   resolveInjury(id: string, resolvedAt: string): Promise<void>;
   /** 세션 코멘트 upsert(UI5 T2) — fold 입력 밖. */
   addSessionNote(rec: SessionNote): Promise<void>;
+  /** 활동 구간 시작(UI11) — "동시 1개만 진행" 규칙을 여기서 강제: 현재 진행 중인 구간이 있으면
+   * 먼저 자동 종료(endedAt = 새 구간의 startedAt, 공백/중첩 없이 이어붙임)한 뒤 새 구간을 시작한다.
+   * fold 입력 밖, 재fold 불필요. */
+  startActivity(rec: ActivitySegment): Promise<void>;
+  /** 활동 구간 종료(UI11) — endedAt·durationSec만 갱신, fold 입력 밖. */
+  endActivity(id: string, endedAt: string, durationSec: number): Promise<void>;
+  /** 세트 소요시간 기록(UI11) — id(=SetRecord.id) 기준 upsert, fold 입력 밖. */
+  recordSetTiming(rec: SetTiming): Promise<void>;
 };
 
 /** program 순서상 CyclePos의 선형 인덱스(Stage1-UI9) — target·현재 위치의 전후(뒤로 이동인지
@@ -381,5 +393,25 @@ export const useProgramStore = create<ProgramStoreState>()((set, get) => ({
 
   async addSessionNote(rec) {
     await upsertSessionNote(rec);
+  },
+
+  async startActivity(rec) {
+    const running = (await listActivitySegments()).find((s) => s.endedAt === undefined);
+    if (running && running.id !== rec.id) {
+      const durationSec = Math.max(
+        0,
+        Math.round((Date.parse(rec.startedAt) - Date.parse(running.startedAt)) / 1000),
+      );
+      await endActivitySegmentRow(running.id, rec.startedAt, durationSec);
+    }
+    await startActivitySegmentRow(rec);
+  },
+
+  async endActivity(id, endedAt, durationSec) {
+    await endActivitySegmentRow(id, endedAt, durationSec);
+  },
+
+  async recordSetTiming(rec) {
+    await upsertSetTimingRow(rec);
   },
 }));

@@ -4,6 +4,7 @@ import type { SetRecord } from "../domain/types.ts";
 import type { PlateConfig } from "../domain/plates";
 import { SetRowShell } from "./SetRowShell";
 import { PlateBreakdown } from "./PlateBreakdown";
+import { formatDuration } from "../lib/duration";
 
 export type SteppedSetRowProps = {
   id: string;
@@ -15,6 +16,8 @@ export type SteppedSetRowProps = {
   cfg: PlateConfig;
   /** SetRow가 계산한 배지(세트번호 또는 AMRAP "F") — 1열 그리드 셀(Stage1-UI2) */
   badge: ReactNode;
+  /** 이 세트의 기록된 소요시간(초, UI11) — 없으면 표시 생략 */
+  durationSec?: number;
   onComplete: (weight: number, reps: number) => void;
   onCorrect: (weight: number, reps: number) => void;
 };
@@ -26,7 +29,7 @@ export type SteppedSetRowProps = {
  * UI v2(Stage1-UI2) — SetRowShell이 4열 그리드[배지|목표|조정|체크원]로 렌더하므로, children을
  * 정확히 2개 요소(목표 셀 div, 조정 셀 span)로 순서대로 반환한다(그리드 트랙 매칭 계약).
  */
-export function SteppedSetRow({ id, planned, recorded, stepWeight, cfg, badge, onComplete, onCorrect }: SteppedSetRowProps) {
+export function SteppedSetRow({ id, planned, recorded, stepWeight, cfg, badge, durationSec, onComplete, onCorrect }: SteppedSetRowProps) {
   const [editing, setEditing] = useState(false);
   const [weight, setWeight] = useState<number>(recorded?.actualWeight ?? planned.weight ?? 0);
   const [reps, setReps] = useState<number>(recorded?.actualReps ?? planned.reps);
@@ -66,6 +69,11 @@ export function SteppedSetRow({ id, planned, recorded, stepWeight, cfg, badge, o
           {amrapLabel}
         </span>
         <PlateBreakdown weight={planned.weight} cfg={cfg} />
+        {recorded && durationSec !== undefined && (
+          <span className="set-duration" data-testid={`set-duration-${id}`}>
+            {formatDuration(durationSec)}
+          </span>
+        )}
       </div>
       <span onClick={stop} className="set-row-adjust">
         {showEditable && (

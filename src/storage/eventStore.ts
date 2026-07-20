@@ -10,7 +10,14 @@ import type {
   ProgramInstanceState,
   FoldInput,
 } from "../domain/types.ts";
-import type { BodyMetric, InjuryLog, SessionNote, ExerciseComment } from "./trackingTypes";
+import type {
+  BodyMetric,
+  InjuryLog,
+  SessionNote,
+  ExerciseComment,
+  ActivitySegment,
+  SetTiming,
+} from "./trackingTypes";
 
 export async function appendSet(rec: SetRecord): Promise<void> {
   await db.setRecords.put(rec);
@@ -176,6 +183,40 @@ export async function listExerciseComments(exerciseId?: string): Promise<Exercis
   const rows = await db.exerciseComments.toArray();
   const filtered = exerciseId ? rows.filter((r) => r.exerciseId === exerciseId) : rows;
   return sortByAtId(filtered);
+}
+
+/** 활동 구간 시작(UI11) — 새 구간 put. "동시 1개만 진행" 규칙은 여기서 강제하지 않는다(단순 CRUD) —
+ * programStore.startActivity가 기존 진행 구간을 먼저 종료시키는 오케스트레이션을 담당. */
+export async function startActivitySegment(rec: ActivitySegment): Promise<void> {
+  await db.activitySegments.put(rec);
+}
+
+/** 활동 구간 종료(UI11) — endedAt·durationSec만 갱신(나머지 필드 보존), resolveInjury와 동일 패턴. */
+export async function endActivitySegment(id: string, endedAt: string, durationSec: number): Promise<void> {
+  await db.activitySegments.update(id, { endedAt, durationSec });
+}
+
+/** 활동 구간 조회(UI11) — sessionId 지정 시 해당 세션만, 미지정 시 전체. startedAt 오름차순(동률이면 id). */
+export async function listActivitySegments(sessionId?: string): Promise<ActivitySegment[]> {
+  const rows = await db.activitySegments.toArray();
+  const filtered = sessionId !== undefined ? rows.filter((r) => r.sessionId === sessionId) : rows;
+  return [...filtered].sort((a, b) =>
+    a.startedAt < b.startedAt ? -1 : a.startedAt > b.startedAt ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+  );
+}
+
+/** 세트 소요시간 upsert(UI11) — id(=대상 SetRecord.id) 기준 put, 1:1. */
+export async function upsertSetTiming(rec: SetTiming): Promise<void> {
+  await db.setTimings.put(rec);
+}
+
+/** 세트 소요시간 조회(UI11) — sessionId 지정 시 해당 세션만, 미지정 시 전체. startedAt 오름차순. */
+export async function listSetTimings(sessionId?: string): Promise<SetTiming[]> {
+  const rows = await db.setTimings.toArray();
+  const filtered = sessionId !== undefined ? rows.filter((r) => r.sessionId === sessionId) : rows;
+  return [...filtered].sort((a, b) =>
+    a.startedAt < b.startedAt ? -1 : a.startedAt > b.startedAt ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+  );
 }
 
 export async function loadFoldInput(): Promise<FoldInput> {

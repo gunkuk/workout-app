@@ -4,8 +4,11 @@ import { SetRow } from "../components/SetRow";
 import { ProposalCard } from "../components/ProposalCard";
 import { ExerciseSwap } from "../components/ExerciseSwap";
 import { RestTimer } from "../components/RestTimer";
+import { ActivityTimer } from "../components/ActivityTimer";
 import { USER_PLATES } from "../lib/plateConfig";
 import { exerciseInfo } from "../domain/exerciseLibrary";
+import { formatDuration } from "../lib/duration";
+import type { ActivitySegment } from "../store/queries";
 import { useTodaySession, STEP_WEIGHT } from "./today/useTodaySession";
 import { setIdFor } from "./today/sessionId";
 
@@ -33,6 +36,7 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
     allWorkSetsComplete,
     swappedSlots,
     timerVisibleSlots,
+    setTimings,
     isSkipped,
     handleComplete,
     handleCorrect,
@@ -46,6 +50,11 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
 
   // 세션 코멘트(UI5 T2) — 전부 완료(allWorkSetsComplete)됐을 때만 노출되는 1줄 입력, 완료 버튼과 함께 제출.
   const [note, setNote] = useState("");
+  // 활동 구간 타이머(UI11) — 이 세션에 연결된, 이미 종료된 구간들(ActivityTimer가 콜백으로 올림).
+  // "세션 총 시간" = 이 구간들의 durationSec 합(세트 첫~끝 wall-clock이 아니라 사용자가 명시적으로
+  // 잰 활동 구간의 합 — 스펙 §C).
+  const [sessionSegments, setSessionSegments] = useState<ActivitySegment[]>([]);
+  const totalSessionSec = sessionSegments.reduce((n, s) => n + (s.durationSec ?? 0), 0);
 
   if (restDay === "rest") {
     return <div className="loading-state">오늘은 휴식일입니다</div>;
@@ -96,6 +105,16 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
         ) : (
           <span className="today-progress">
             {doneWork}/{totalWork}
+          </span>
+        )}
+      </div>
+      {/* 활동 구간 타이머(UI11, 스펙 §A) — 스티키 헤더 바로 아래. 세션 총 시간(§C, 이 세션에 연결된
+          구간 durationSec 합)은 데이터가 있을 때만 그 옆에 노출. */}
+      <div className="today-activity-row">
+        <ActivityTimer sessionId={sessionId} onSessionSegmentsChange={setSessionSegments} />
+        {totalSessionSec > 0 && (
+          <span className="today-total-time" data-testid="today-total-time">
+            총 {formatDuration(totalSessionSec)}
           </span>
         )}
       </div>
@@ -167,6 +186,7 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
                           stepWeight={STEP_WEIGHT}
                           index={i + 1}
                           cfg={USER_PLATES}
+                          durationSec={setTimings[id]?.durationSec}
                           onComplete={(w, r) => handleComplete(id, slot, s, w, r, swappedSlots[slot.slotId])}
                           onCorrect={(w, r) => handleCorrect(id, w, r)}
                         />

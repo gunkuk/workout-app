@@ -16,6 +16,9 @@ export type SetRowProps = {
   index: number;
   /** 원판 구성 표시용 설정 — 목표 셀 서브라인(PlateBreakdown)에 그대로 전달(Stage1-UI2) */
   cfg: PlateConfig;
+  /** 이 세트의 기록된 소요시간(초, UI11) — 직전 세트 완료~이 세트 완료 간격. 없으면(첫 세트 등
+   *  타이밍 미기록) 표시하지 않는다. */
+  durationSec?: number;
   /** 최초 완료 제출 */
   onComplete: (weight: number, reps: number) => void;
   /** 이미 완료된 세트의 정정 제출 */
@@ -28,7 +31,7 @@ export type SetRowProps = {
  * (missingTM 슬롯은 TodayScreen이 애초에 SetRow를 렌더하지 않으므로 이 컴포넌트에 들어오지 않는다.)
  * UI v2(Stage1-UI2) — 배지(세트번호 또는 AMRAP "F")를 여기서 한 번만 계산해 두 leaf에 공통 전달.
  */
-export function SetRow({ id, planned, recorded, stepWeight, index, cfg, onComplete, onCorrect }: SetRowProps) {
+export function SetRow({ id, planned, recorded, stepWeight, index, cfg, durationSec, onComplete, onCorrect }: SetRowProps) {
   const badge = planned.amrapRole ? (
     <span className="set-badge badge-amrap">F</span>
   ) : (
@@ -43,6 +46,7 @@ export function SetRow({ id, planned, recorded, stepWeight, index, cfg, onComple
         recorded={recorded}
         cfg={cfg}
         badge={badge}
+        durationSec={durationSec}
         onComplete={onComplete}
         onCorrect={onCorrect}
       />
@@ -56,6 +60,7 @@ export function SetRow({ id, planned, recorded, stepWeight, index, cfg, onComple
       stepWeight={stepWeight}
       cfg={cfg}
       badge={badge}
+      durationSec={durationSec}
       onComplete={onComplete}
       onCorrect={onCorrect}
     />

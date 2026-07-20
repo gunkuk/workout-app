@@ -105,6 +105,94 @@ button {
   white-space: nowrap;
 }
 
+/* ---------- 활동 구간 타이머(UI11) — 스티키 헤더 바로 아래 ---------- */
+
+.today-activity-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.today-total-time {
+  color: var(--gold);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.activity-timer {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-timer-running {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.activity-timer-kind {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.activity-timer-elapsed {
+  color: var(--gold);
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-timer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.activity-kind-chip {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.activity-other-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.activity-timer-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.activity-summary-chip {
+  color: var(--muted);
+  font-size: 12px;
+  background: var(--surface2);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+/* ---------- 세트별 소요시간(UI11) — SetRow 목표 셀 하단 muted 표시 ---------- */
+
+.set-duration {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
 /* ---------- 운동 블록(카드) ---------- */
 
 .exercise-card {
@@ -802,6 +890,24 @@ button {
   font-style: italic;
   font-size: 13px;
   margin: 4px 0 0;
+}
+
+.session-activity {
+  margin: 4px 0 0;
+}
+
+.session-activity-total {
+  color: var(--gold);
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.session-activity-breakdown {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 2px 0 0;
+  padding-left: 16px;
 }
 
 

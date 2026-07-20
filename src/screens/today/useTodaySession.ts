@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useProgramStore } from "../../store/programStore";
-import { loadEventLog, type SessionNote } from "../../store/queries";
+import { loadEventLog, loadSetTimings, type SessionNote, type SetTiming } from "../../store/queries";
 import { nowISO } from "../../lib/time";
 import { applyCorrections } from "../../domain/corrections";
 import { stepOf } from "../../domain/plates";
@@ -22,6 +22,8 @@ export type UseTodaySessionResult = {
   allWorkSetsComplete: boolean;
   swappedSlots: Record<string, string>;
   timerVisibleSlots: Record<string, boolean>;
+  /** SetRecord.id -> 기록된 소요시간(UI11) — SetRow의 muted 시간 표시용(없는 id는 미기록, 첫 세트 등). */
+  setTimings: Record<string, SetTiming>;
   isSkipped: (slotId: string) => boolean;
   handleComplete: (
     id: string,
@@ -56,8 +58,15 @@ export function useTodaySession(onSessionComplete?: () => void): UseTodaySession
   const recordCorrection = useProgramStore((s) => s.recordCorrection);
   const completeSession = useProgramStore((s) => s.completeSession);
   const addSessionNote = useProgramStore((s) => s.addSessionNote);
+  const recordSetTimingMutation = useProgramStore((s) => s.recordSetTiming);
 
   const [recorded, setRecorded] = useState<Record<string, SetRecord>>({});
+  /** UI11 — SetRecord.id -> 기록된 SetTiming(표시용). */
+  const [setTimings, setSetTimings] = useState<Record<string, SetTiming>>({});
+  /** UI11 — slotId -> "armed" 시작시각(직전 세트 완료 시각). 그 슬롯의 다음 세트가 완료되면 이
+   *  시각~완료시각을 SetTiming으로 기록한 뒤 자신의 완료시각으로 재무장한다. 슬롯의 첫 세트는
+   *  armed 값이 없으므로 스킵(허구 시작시각 생성 금지 — set-to-set interval만 잰다는 계약). */
+  const [setStartedAt, setSetStartedAt] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
   /** slotId(현재 표시 중인, 스왑 후 슬롯) -> 원래 exerciseId. handleComplete의 5번째 인자(substitutedFrom) 배선용. */
@@ -135,7 +144,28 @@ export function useTodaySession(onSessionComplete?: () => void): UseTodaySession
       if (toAppend.length > 0) {
         await Promise.all(toAppend.map((r) => recordSet(r)));
       }
-      if (!cancelled) setRecorded(map);
+
+      // UI11 — 세트 타이밍 복원: 기록된 SetTiming 맵 + 아직 다음 세트가 안 온 슬롯의 armed
+      // 시작시각(그 슬롯에서 이미 완료된 마지막 작업세트의 completedAt)을 재구성한다. 새로고침
+      // 이전에 armed됐지만 아직 안 쓰인 시각은 유실될 수 있으나(로컬 state), 그 경우 다음 완료가
+      // "첫 세트"로 취급되어 스킵될 뿐 허구 데이터가 생기지는 않는다(설계상 안전한 쪽으로 열화).
+      const timingRows = await loadSetTimings(sessionId);
+      const timingsMap: Record<string, SetTiming> = {};
+      for (const t of timingRows) timingsMap[t.id] = t;
+
+      const armedMap: Record<string, string> = {};
+      for (const slot of todayPlan.slots) {
+        const slotWorkSets = Object.values(map).filter((r) => r.slotId === slot.slotId && r.setType === "work");
+        if (slotWorkSets.length === 0) continue;
+        const latest = slotWorkSets.reduce((a, b) => (a.completedAt > b.completedAt ? a : b));
+        armedMap[slot.slotId] = latest.completedAt;
+      }
+
+      if (!cancelled) {
+        setRecorded(map);
+        setSetTimings(timingsMap);
+        setSetStartedAt(armedMap);
+      }
     })();
     return () => {
       cancelled = true;
@@ -158,6 +188,7 @@ export function useTodaySession(onSessionComplete?: () => void): UseTodaySession
   const handleComplete = useCallback(
     (id: string, slot: PlannedSlot, planned: PlannedSet, weight: number, reps: number, swappedFrom?: string) => {
       if (!sessionId) return;
+      const now = nowISO();
       const rec: SetRecord = {
         id,
         sessionId,
@@ -170,7 +201,7 @@ export function useTodaySession(onSessionComplete?: () => void): UseTodaySession
         actualReps: reps,
         amrapRole: planned.amrapRole,
         substitutedFrom: swappedFrom,
-        completedAt: nowISO(),
+        completedAt: now,
         schemaVersion: 1,
       };
       // 낙관적 UI 갱신 — DB write는 await하되 UI를 블로킹하지 않는다.
@@ -185,8 +216,19 @@ export function useTodaySession(onSessionComplete?: () => void): UseTodaySession
           return next;
         });
       });
+
+      // UI11 — 세트별 타이머: 같은 슬롯의 직전 세트 완료 시각(armed)이 있으면 그 간격을 SetTiming으로
+      // 기록(set-to-set interval = 작업+휴식). 첫 세트(armed 없음)는 기록하지 않는다(허구 데이터 금지).
+      const armed = setStartedAt[slot.slotId];
+      if (armed) {
+        const durationSec = Math.max(0, Math.round((Date.parse(now) - Date.parse(armed)) / 1000));
+        const timingRec: SetTiming = { id, sessionId, durationSec, startedAt: armed, endedAt: now, schemaVersion: 1 };
+        setSetTimings((prev) => ({ ...prev, [id]: timingRec }));
+        recordSetTimingMutation(timingRec).catch(() => setError("세트 시간 저장 실패 — 다시 시도해주세요."));
+      }
+      setSetStartedAt((prev) => ({ ...prev, [slot.slotId]: now }));
     },
-    [sessionId, recordSet],
+    [sessionId, recordSet, setStartedAt, recordSetTimingMutation],
   );
 
   const handleCorrect = useCallback(
@@ -329,6 +371,7 @@ export function useTodaySession(onSessionComplete?: () => void): UseTodaySession
     allWorkSetsComplete,
     swappedSlots,
     timerVisibleSlots,
+    setTimings,
     isSkipped,
     handleComplete,
     handleCorrect,

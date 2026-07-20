@@ -1,11 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { loadEventLog, listExternalSessions, loadSessionNote, type ExternalSessionRecord } from "../store/queries";
+import {
+  loadEventLog,
+  listExternalSessions,
+  loadSessionNote,
+  loadActivitySegments,
+  type ExternalSessionRecord,
+  type ActivitySegment,
+} from "../store/queries";
 import { sortByAtId } from "../domain/order";
 import { applyCorrections } from "../domain/corrections";
 import { activeSessions } from "../store/sessionRevocation";
 import { tmHistory, e1rmSeries } from "../domain/e1rm";
 import { EXERCISES } from "../domain/exerciseLibrary";
 import { LineChart } from "../components/LineChart";
+import { formatDuration } from "../lib/duration";
+import { activityKindLabel } from "../lib/activityKinds";
 import type { SessionCompleted, SetRecord, FoldInput } from "../domain/types.ts";
 import "../styles/history-analytics.css";
 
@@ -48,6 +57,8 @@ export function HistoryScreen() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   /** sessionId -> 세션 코멘트(UI5 T2) — 펼칠 때 lazy 조회해 채운다("" = 조회했지만 없음). */
   const [noteText, setNoteText] = useState<Record<string, string>>({});
+  /** sessionId -> 그 세션에 연결된 활동 구간들(UI11) — 펼칠 때 lazy 조회(noteText와 동일 패턴). */
+  const [segmentsBySession, setSegmentsBySession] = useState<Record<string, ActivitySegment[]>>({});
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
@@ -187,6 +198,16 @@ export function HistoryScreen() {
           if (row.kind === "program") {
             const session = row.session;
             const sessionSets = sets.filter((s) => s.sessionId === session.sessionId);
+            const segments = segmentsBySession[session.sessionId];
+            // 세션 총 시간(스펙 §C) = 이 세션에 연결된 활동 구간(종료된 것만) durationSec 합 —
+            // 세트 첫~끝 wall-clock이 아니라 사용자가 명시적으로 잰 구간의 합.
+            const endedSegments = (segments ?? []).filter((s) => s.durationSec !== undefined);
+            const totalActivitySec = endedSegments.reduce((n, s) => n + (s.durationSec ?? 0), 0);
+            const kindBreakdown = new Map<string, number>();
+            for (const s of endedSegments) {
+              const label = activityKindLabel(s);
+              kindBreakdown.set(label, (kindBreakdown.get(label) ?? 0) + (s.durationSec ?? 0));
+            }
             return (
               <li key={session.id}>
                 <div
@@ -201,6 +222,11 @@ export function HistoryScreen() {
                     if (next && noteText[session.sessionId] === undefined) {
                       loadSessionNote(session.sessionId).then((note) => {
                         setNoteText((prev) => ({ ...prev, [session.sessionId]: note?.note ?? "" }));
+                      });
+                    }
+                    if (next && segmentsBySession[session.sessionId] === undefined) {
+                      loadActivitySegments(session.sessionId).then((segs) => {
+                        setSegmentsBySession((prev) => ({ ...prev, [session.sessionId]: segs }));
                       });
                     }
                   }}
@@ -220,6 +246,18 @@ export function HistoryScreen() {
                   <p className="session-note" data-testid={`session-note-${session.id}`}>
                     {noteText[session.sessionId]}
                   </p>
+                )}
+                {isExpanded && endedSegments.length > 0 && (
+                  <div data-testid={`session-activity-${session.id}`} className="session-activity">
+                    <p className="session-activity-total">총 {formatDuration(totalActivitySec)}</p>
+                    <ul className="session-activity-breakdown">
+                      {[...kindBreakdown.entries()].map(([label, sec]) => (
+                        <li key={label}>
+                          {label} {formatDuration(sec)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
               </li>
             );

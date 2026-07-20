@@ -4,6 +4,7 @@ import type { SetRecord } from "../domain/types.ts";
 import type { PlateConfig } from "../domain/plates";
 import { SetRowShell } from "./SetRowShell";
 import { PlateBreakdown } from "./PlateBreakdown";
+import { formatDuration } from "../lib/duration";
 
 export type FreeInputSetRowProps = {
   id: string;
@@ -14,6 +15,8 @@ export type FreeInputSetRowProps = {
   cfg: PlateConfig;
   /** SetRow가 계산한 배지 — 1열 그리드 셀(Stage1-UI2) */
   badge: ReactNode;
+  /** 이 세트의 기록된 소요시간(초, UI11) — 없으면 표시 생략 */
+  durationSec?: number;
   onComplete: (weight: number, reps: number) => void;
   onCorrect: (weight: number, reps: number) => void;
 };
@@ -27,7 +30,7 @@ export type FreeInputSetRowProps = {
  * 셀=무게·렙 입력, 조정 셀=제출 버튼; 완료(읽기전용) 모드에선 목표 셀=값 텍스트+원판 서브라인,
  * 조정 셀=빈 자리표시자(그리드 정렬 유지).
  */
-export function FreeInputSetRow({ id, planned, recorded, cfg, badge, onComplete, onCorrect }: FreeInputSetRowProps) {
+export function FreeInputSetRow({ id, planned, recorded, cfg, badge, durationSec, onComplete, onCorrect }: FreeInputSetRowProps) {
   const [editing, setEditing] = useState(false);
   const [weight, setWeight] = useState<number>(recorded?.actualWeight ?? planned.weight ?? 0);
   const [reps, setReps] = useState<number>(recorded?.actualReps ?? planned.reps);
@@ -100,6 +103,11 @@ export function FreeInputSetRow({ id, planned, recorded, cfg, badge, onComplete,
               {weight}kg × {reps}
             </span>
             <PlateBreakdown weight={planned.weight} cfg={cfg} />
+            {recorded && durationSec !== undefined && (
+              <span className="set-duration" data-testid={`set-duration-${id}`}>
+                {formatDuration(durationSec)}
+              </span>
+            )}
           </div>
           <span className="set-row-adjust" />
         </>

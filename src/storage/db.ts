@@ -8,7 +8,14 @@ import type {
   ProgramInstanceState,
 } from "../domain/types.ts";
 import type { MuscleGroup } from "../domain/exerciseLibrary";
-import type { BodyMetric, InjuryLog, SessionNote, ExerciseComment } from "./trackingTypes";
+import type {
+  BodyMetric,
+  InjuryLog,
+  SessionNote,
+  ExerciseComment,
+  ActivitySegment,
+  SetTiming,
+} from "./trackingTypes";
 
 /**
  * 외부(크로스핏 등) 세션 저장 레코드(Stage1-C3 T4, Dexie v2). domain/analytics.ts의
@@ -42,6 +49,8 @@ export class WorkoutDB extends Dexie {
   injuries!: Table<InjuryLog, string>;
   sessionNotes!: Table<SessionNote, string>;
   exerciseComments!: Table<ExerciseComment, string>;
+  activitySegments!: Table<ActivitySegment, string>;
+  setTimings!: Table<SetTiming, string>;
 
   constructor(name = "workout-db") {
     super(name);
@@ -68,6 +77,12 @@ export class WorkoutDB extends Dexie {
       injuries: "id",
       sessionNotes: "id",
       exerciseComments: "id",
+    });
+    // Dexie v4(UI11) — 활동 구간 타이머 + 세트별 소요시간 테이블 2종 추가. v2/v3와 동일 패턴(신규
+    // 테이블만 명시하면 기존 12개 테이블이 자동 승계, 기존 데이터 무손실). fold 입력 밖(동결 무관).
+    this.version(4).stores({
+      activitySegments: "id",
+      setTimings: "id",
     });
   }
 }
