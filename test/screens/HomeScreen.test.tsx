@@ -163,15 +163,33 @@ describe("HomeScreen", () => {
     confirmSpy.mockRestore();
   });
 
+
+/** 날짜 독립 헬퍼(2026-07-20 수정): 오늘이 무슨 요일이든 "이번 주"(월요일 시작) 기준
+ *  오프셋 날짜의 ISO를 만든다. 하드코딩 날짜(2026-07-09 등)를 쓰면 실행 요일에 따라
+ *  그 날짜가 지난 주로 밀려 출석 스트립 열 인덱스가 어긋난다. */
+function thisWeekISO(offsetFromMonday: number): string {
+  const now = new Date();
+  const dow = now.getDay(); // 0=일
+  const mondayDelta = dow === 0 ? -6 : 1 - dow;
+  return new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + mondayDelta + offsetFromMonday,
+    12,
+    0,
+    0,
+  ).toISOString();
+}
+
   it("⑨ 출석 스트립 — complete/partial/none 3종 셀 상태 렌더(이번 주 목/금/토)", async () => {
     await onboard();
     const todayPos = useProgramStore.getState().todayPos!;
-    // 목(2026-07-09): 완료 세션 → complete. 금(2026-07-10): 세트기록만(완료 세션 없음) → partial.
-    // 토(2026-07-11, 오늘): 아무 기록 없음 → none.
+    // 이번 주 목: 완료 세션 → complete. 이번 주 금: 세트기록만(완료 세션 없음) → partial.
+    // 이번 주 토: 아무 기록 없음 → none. (실행 요일 무관하도록 thisWeekISO로 계산)
     await appendSession({
       id: "att-complete",
       sessionId: "att-complete-session",
-      at: at(9),
+      at: thisWeekISO(3),
       cyclePos: todayPos,
       status: "completed",
       programId: seed.id,
@@ -186,7 +204,7 @@ describe("HomeScreen", () => {
       targetReps: 5,
       actualWeight: 100,
       actualReps: 5,
-      completedAt: at(10),
+      completedAt: thisWeekISO(4),
       schemaVersion: 1,
     });
 
@@ -196,7 +214,7 @@ describe("HomeScreen", () => {
     // "이번 주" 열 인덱스가 7(8주 그리드의 마지막)에서 3(4주 그리드의 마지막)으로 이동.
     const completeCell = await screen.findByTestId("attendance-cell-2-3"); // 목, 이번 주
     const partialCell = screen.getByTestId("attendance-cell-3-3"); // 금, 이번 주
-    const noneCell = screen.getByTestId("attendance-cell-4-3"); // 토(오늘), 이번 주
+    const noneCell = screen.getByTestId("attendance-cell-4-3"); // 토, 이번 주
 
     expect(completeCell).toHaveClass("is-complete");
     expect(partialCell).toHaveClass("is-partial");
