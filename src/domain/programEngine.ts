@@ -38,7 +38,8 @@ function buildSet(
   accessoryState: AccessoryState | undefined,
   cfg: PlateConfig,
   markMissingTM: () => void,
-  repLadderReps?: number
+  repLadderReps?: number,
+  defaultWeight: number | null = null
 ): PlannedSet {
   const amrap = setSpec.amrapRole ? { amrapRole: setSpec.amrapRole } : {};
 
@@ -55,7 +56,13 @@ function buildSet(
 
   // tracked (악세사리)
   if (!accessoryState) {
-    return { weight: null, reps: setSpec.reps, setType: "work", ...amrap };
+    // 상태가 아직 없어도 slot.defaultLoad로 무게를 유도할 수 있으면 처방한다(UI13) —
+    // 첫 세션부터 nSuns처럼 전부 채워진 상태로 보이고, ± 스테퍼로 조정 가능.
+    // 유도 불가(참조 TM 없음·defaultLoad 없음)면 기존 자유입력(needsInit) 경로 유지.
+    if (defaultWeight === null) {
+      return { weight: null, reps: setSpec.reps, setType: "work", ...amrap };
+    }
+    return { weight: defaultWeight, reps: repLadderReps ?? setSpec.reps, setType: "work", ...amrap };
   }
   const reps = repLadderReps ?? accessoryState.targetReps;
   return { weight: accessoryState.weight, reps, setType: "work", ...amrap };
@@ -76,6 +83,22 @@ function computeWarmups(slot: SlotSpec, sets: PlannedSet[], missingTM: boolean, 
   }));
 }
 
+/**
+ * tracked 슬롯의 최초 무게 유도(UI13) — AccessoryState가 없을 때만 호출된다.
+ * `kg` 절대값이 있으면 그대로, 아니면 `tm[ref] × pct`를 그 슬롯의 증량 단위로 반올림한다.
+ * 참조 TM이 없으면 null → 호출부가 기존 자유입력(needsInit) 경로로 폴백.
+ */
+function resolveDefaultLoad(slot: SlotSpec, tm: Record<string, number>, cfg: PlateConfig): number | null {
+  const d = slot.defaultLoad;
+  if (!d) return null;
+  const step = (slot.progressionParams?.["weightStep"] as number | undefined) ?? stepOf(cfg);
+  if (typeof d.kg === "number") return roundToStep(d.kg, step);
+  if (!d.ref || typeof d.pct !== "number") return null;
+  const base = tm[d.ref];
+  if (base === undefined) return null;
+  return roundToStep(base * d.pct, step);
+}
+
 function buildSlot(
   slot: SlotSpec,
   tm: Record<string, number>,
@@ -85,18 +108,28 @@ function buildSlot(
   let missingTM = false;
   const accessoryState = accessories[slot.id];
   const hasTracked = slot.sets.some((s) => s.load.kind === "tracked");
-  const needsInit = hasTracked && !accessoryState;
+  // UI13: 상태가 없어도 defaultLoad로 무게를 유도할 수 있으면 처방된 슬롯으로 취급(needsInit 해제).
+  const defaultWeight = accessoryState ? null : resolveDefaultLoad(slot, tm, cfg);
+  const needsInit = hasTracked && !accessoryState && defaultWeight === null;
 
   // repLadder: per-set 목표를 총합(targetReps)에서 파생 — doubleProgression 경로(uniform reps)는 그대로 둔다.
-  const repLadderTargets =
-    slot.progressionRuleId === "repLadder" && accessoryState
-      ? deriveRepLadderTargets(accessoryState.targetReps, slot.progressionParams as unknown as RepLadderParams)
+  // 상태가 없고 defaultLoad로 처방하는 첫 세션은 사다리 0스텝(= sets×repMin 총합)을 쓴다.
+  const ladderParams = slot.progressionParams as unknown as RepLadderParams | undefined;
+  const repLadderTotal =
+    slot.progressionRuleId === "repLadder"
+      ? accessoryState
+        ? accessoryState.targetReps
+        : defaultWeight !== null && ladderParams
+          ? ladderParams.sets * ladderParams.repMin
+          : null
       : null;
+  const repLadderTargets =
+    repLadderTotal !== null && ladderParams ? deriveRepLadderTargets(repLadderTotal, ladderParams) : null;
 
   const sets = slot.sets.map((setSpec, i) =>
     buildSet(setSpec, slot, tm, accessoryState, cfg, () => {
       missingTM = true;
-    }, repLadderTargets ? repLadderTargets[i] : undefined)
+    }, repLadderTargets ? repLadderTargets[i] : undefined, defaultWeight)
   );
 
   const warmups = computeWarmups(slot, sets, missingTM, cfg);

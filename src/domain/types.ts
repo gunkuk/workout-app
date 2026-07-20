@@ -78,6 +78,9 @@ export type SlotSpec = {
   warmupRuleId?: string;
   progressionRuleId?: string;
   progressionParams?: Record<string, unknown>;
+  /** tracked 슬롯의 최초 무게 유도(UI13) — AccessoryState가 아직 없을 때만 쓰인다.
+   *  `kg` 절대값 또는 `ref` TM × `pct`. 상태가 생기면(첫 세션 기록) 무시된다. */
+  defaultLoad?: { ref?: string; pct?: number; kg?: number };
   sets: SetSpec[];
 };
 
@@ -89,6 +92,8 @@ export type ProgramDefinition = {
   description?: string;
   version: number;
   schemaVersion: 1;
+  /** 프로그램 활성화 시 누락된 TM을 다른 TM에서 자동 시드(UI13). 이미 있는 TM은 덮지 않는다. */
+  tmSeeds?: { exerciseId: string; ref: string; pct: number }[];
   weeks: { days: DaySpec[] }[];
 };
 

@@ -72,6 +72,8 @@ export type ProgramStoreState = {
   acceptProposal(decision: DecisionEvent): Promise<void>;
   /** 가져오기(파일/URL) — 프로그램 버전 upsert + 라이브러리 등록(idempotent) 후 재fold(Stage1-C3 T2). */
   importProgram(program: ProgramDefinition): Promise<void>;
+  /** 프로그램의 tmSeeds를 적용해 누락 TM만 자동 시드(UI13). 기존 TM은 덮지 않는다. */
+  applyTmSeeds(): Promise<void>;
   /** 라이브러리 전환 — 새 InstanceState 설정 후 재fold. 과거 이력(SetRecord 등)은 불변(Stage1-C3 T2, 스펙 §2-7). */
   switchProgram(instanceState: ProgramInstanceState): Promise<void>;
   /** 진행 위치 조정(Stage1-UI7, 뒤로 이동 Stage1-UI9) — 롤링 커서를 target으로 옮긴다.
@@ -299,6 +301,29 @@ export const useProgramStore = create<ProgramStoreState>()((set, get) => ({
 
   async switchProgram(instanceState) {
     await setInstanceState(instanceState);
+    await get().load();
+    await get().applyTmSeeds();
+  },
+
+  /** 프로그램의 tmSeeds(UI13) 적용 — 누락된 TM만 다른 TM에서 유도해 seed DecisionEvent로 기록한다.
+   *  이미 값이 있는 TM은 절대 덮지 않는다(사용자가 손댄 값 보호). 시드가 하나라도 생기면 재fold. */
+  async applyTmSeeds() {
+    const { activeProgram, tm } = get();
+    const seeds = activeProgram?.tmSeeds;
+    if (!activeProgram || !seeds || seeds.length === 0) return;
+    const toSeed = seeds.filter((sd) => tm[sd.exerciseId] === undefined && tm[sd.ref] !== undefined);
+    if (toSeed.length === 0) return;
+    const at = new Date().toISOString();
+    for (const sd of toSeed) {
+      await appendDecision({
+        id: crypto.randomUUID(),
+        target: { kind: "tm", exerciseId: sd.exerciseId },
+        kind: "seed",
+        value: Math.round((tm[sd.ref]! * sd.pct) / 2.5) * 2.5,
+        at,
+        schemaVersion: 1,
+      });
+    }
     await get().load();
   },
 

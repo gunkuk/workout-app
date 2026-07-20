@@ -1,7 +1,7 @@
 {
   "id": "kk-6day",
   "name": "KK 6-day (허리 부상 대응 · 데드→티바 대체)",
-  "description": "## 핵심 구조 (허리 부상 대응 · 주 5일 · 1주 반복 · 2026-07-20)\n- 월 등(중량풀업+덤벨로우+SLR) / 화 어깨(OHP+벤치T2+머신컬) / 수 하체(스쿼트+불가리안 스플릿+카프) / 금 등(티바로우+원암로우+리어델트) / 토 가슴(벤치+CGBP+SLR). 목요일은 휴식(프로그램 없음), 일요일 크로스핏은 홈의 자유 운동 기록으로.\n## 데드리프트 대체 (허리 부상 대응 핵심)\n- 데드리프트를 프로그램에서 제외하고 금요일 T1을 티바로우로 대체 — 축성(axial) 부하를 최소화하면서 등 자극을 유지.\n## 증량 규칙\n- T1(OHP·스쿼트·벤치·티바로우) — linearTopSet: 탑세트(95%×1+) 3렙 이상 → 자동 증량(벤치/OHP/티바 +2.5, 스쿼트 +5). 3렙 미만 → 동결(기본) 또는 −5% 디로드 제안. 발효는 TM당 사이클-주 1회.\n- T2·악세사리 — repLadder: 3세트 목표렙 + 4세트 동일무게 AMRAP. 전 세트 목표 달성 시 렙 사다리 한 스텝 전진(5555→6555→6655→6665→6666→7666→7766→7776→7777, 8스텝), 미달이면 그 스텝 재도전. 7777 달성 후 다음 세션에 무게 증량 + 사다리 리셋(5555).\n## 풀업 예외 — 대체 불가, 별도 규칙\n- 중량풀업(월 T1)은 가중치가 체중 대비 소량이라 TM % 방식이 물리적으로 무의미(추가중량 20kg의 70%=14kg는 체감 강도를 거의 못 바꿈). 기존 doubleProgression(추가중량 3~6회, 6회 도달 시 +2.5kg) 그대로 사용.\n## 티바로우 TM 안내\n- 티바로우는 온보딩 TM 시드 목록에 없음(기존 4-day 사용자에게 불필요한 항목 추가 방지). **설정 → TM 수동 편집**에서 직접 입력할 것 — 데드리프트 TM의 약 60~70%를 시작값으로 권장. 입력 전에는 앱이 TM 미설정으로 표시하며(무게 칸 공백), 다른 슬롯 진행에는 영향 없음.\n## 중복 종목 규칙 배치 (스펙 §3.3 — TM당 규칙 슬롯 ≤1)\n- 벤치: 화(T2)는 볼륨 노출 전용 고정 세트(규칙 없음), 토(T1)에만 linearTopSet.\n- 레터럴레이즈: 월(accessory)에만 repLadder, 토(accessory)는 규칙 없이 tracked 유지(수동 기록).\n## 안내\n- 세션 전후 허리 스트레칭(고양이-소 자세·힙힌지 모빌리티)과 가벼운 걷기/러닝 권장. 통증 재발·저림·방사통 시 훈련 조정보다 진료를 먼저(진단·치료는 의료 영역).",
+  "description": "## 핵심 구조 (허리 부상 대응 · 주 5일 · 1주 반복 · 2026-07-20)\n- 월 등(중량풀업+덤벨로우+SLR) / 화 어깨(OHP+벤치T2+머신컬) / 수 하체(스쿼트+불가리안 스플릿+카프) / 금 등(티바로우+원암로우+리어델트) / 토 가슴(벤치+CGBP+SLR). 목요일은 휴식(프로그램 없음), 일요일 크로스핏은 홈의 자유 운동 기록으로.\n## 데드리프트 대체 (허리 부상 대응 핵심)\n- 데드리프트를 프로그램에서 제외하고 금요일 T1을 티바로우로 대체 — 축성(axial) 부하를 최소화하면서 등 자극을 유지.\n## 증량 규칙\n- T1(OHP·스쿼트·벤치·티바로우) — linearTopSet: 탑세트(95%×1+) 3렙 이상 → 자동 증량(벤치/OHP/티바 +2.5, 스쿼트 +5). 3렙 미만 → 동결(기본) 또는 −5% 디로드 제안. 발효는 TM당 사이클-주 1회.\n- T2·악세사리 — repLadder: 3세트 목표렙 + 4세트 동일무게 AMRAP. 전 세트 목표 달성 시 렙 사다리 한 스텝 전진(5555→6555→6655→6665→6666→7666→7766→7776→7777, 8스텝), 미달이면 그 스텝 재도전. 7777 달성 후 다음 세션에 무게 증량 + 사다리 리셋(5555).\n## 풀업 예외 — 대체 불가, 별도 규칙\n- 중량풀업(월 T1)은 가중치가 체중 대비 소량이라 TM % 방식이 물리적으로 무의미(추가중량 20kg의 70%=14kg는 체감 강도를 거의 못 바꿈). 기존 doubleProgression(추가중량 3~6회, 6회 도달 시 +2.5kg) 그대로 사용.\n## 티바로우 TM 안내\n- 티바로우는 온보딩 TM 시드 목록에 없음(기존 4-day 사용자에게 불필요한 항목 추가 방지). **설정 → TM 수동 편집**에서 직접 입력할 것 — 데드리프트 TM의 약 60~70%를 시작값으로 권장. 입력 전에는 앱이 TM 미설정으로 표시하며(무게 칸 공백), 다른 슬롯 진행에는 영향 없음.\n## 중복 종목 규칙 배치 (스펙 §3.3 — TM당 규칙 슬롯 ≤1)\n- 벤치: 화(T2)는 볼륨 노출 전용 고정 세트(규칙 없음), 토(T1)에만 linearTopSet.\n- 레터럴레이즈: 월(accessory)에만 repLadder, 토(accessory)는 규칙 없이 tracked 유지(수동 기록).\n## 안내\n- 세션 전후 허리 스트레칭(고양이-소 자세·힙힌지 모빌리티)과 가벼운 걷기/러닝 권장. 통증 재발·저림·방사통 시 훈련 조정보다 진료를 먼저(진단·치료는 의료 영역). 시작 무게는 전부 현재 TM에서 자동 유도된 보수적 추정치다(1세션차 = 캘리브레이션 — ±로 조정하면 그 값이 기준이 되어 이후 자동 추적). 티바로우 TM은 데드리프트 TM의 65%로 자동 시드된다.",
   "version": 1,
   "schemaVersion": 1,
   "weeks": [
@@ -17,39 +17,127 @@
               "exerciseId": "pullup",
               "label": "T1",
               "sets": [
-                { "load": { "kind": "tracked" }, "reps": 3 },
-                { "load": { "kind": "tracked" }, "reps": 3 },
-                { "load": { "kind": "tracked" }, "reps": 3 },
-                { "load": { "kind": "tracked" }, "reps": 3 }
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 3
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 3
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 3
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 3
+                }
               ],
               "progressionRuleId": "doubleProgression",
-              "progressionParams": { "repMin": 3, "repMax": 6, "weightStep": 2.5, "sets": 4 }
+              "progressionParams": {
+                "repMin": 3,
+                "repMax": 6,
+                "weightStep": 2.5,
+                "sets": 4
+              },
+              "defaultLoad": {
+                "kg": 5
+              }
             },
             {
               "id": "d1-dbrow",
               "exerciseId": "dumbbellRow",
               "label": "T2",
               "sets": [
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5, "amrapRole": "backoff" }
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5,
+                  "amrapRole": "backoff"
+                }
               ],
               "progressionRuleId": "repLadder",
-              "progressionParams": { "sets": 4, "repMin": 5, "repMax": 7, "weightStep": 2.5 }
+              "progressionParams": {
+                "sets": 4,
+                "repMin": 5,
+                "repMax": 7,
+                "weightStep": 2.5
+              },
+              "defaultLoad": {
+                "ref": "deadlift",
+                "pct": 0.25
+              }
             },
             {
               "id": "d1-lateral",
               "exerciseId": "lateralRaise",
               "label": "accessory",
               "sets": [
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5, "amrapRole": "backoff" }
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5,
+                  "amrapRole": "backoff"
+                }
               ],
               "progressionRuleId": "repLadder",
-              "progressionParams": { "sets": 4, "repMin": 5, "repMax": 7, "weightStep": 2.5 }
+              "progressionParams": {
+                "sets": 4,
+                "repMin": 5,
+                "repMax": 7,
+                "weightStep": 2.5
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.12
+              }
             }
           ]
         },
@@ -63,26 +151,97 @@
               "exerciseId": "ohp",
               "label": "T1",
               "sets": [
-                { "load": { "kind": "pctOfTM", "pct": 0.7 }, "reps": 5 },
-                { "load": { "kind": "pctOfTM", "pct": 0.85 }, "reps": 3 },
-                { "load": { "kind": "pctOfTM", "pct": 0.95 }, "reps": 1, "amrapRole": "topSet" },
-                { "load": { "kind": "pctOfTM", "pct": 0.8 }, "reps": 3 },
-                { "load": { "kind": "pctOfTM", "pct": 0.8 }, "reps": 3 },
-                { "load": { "kind": "pctOfTM", "pct": 0.8 }, "reps": 3, "amrapRole": "backoff" }
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.7
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.85
+                  },
+                  "reps": 3
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.95
+                  },
+                  "reps": 1,
+                  "amrapRole": "topSet"
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.8
+                  },
+                  "reps": 3
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.8
+                  },
+                  "reps": 3
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.8
+                  },
+                  "reps": 3,
+                  "amrapRole": "backoff"
+                }
               ],
               "progressionRuleId": "linearTopSet",
-              "progressionParams": { "increment": 2.5, "minReps": 3 }
+              "progressionParams": {
+                "increment": 2.5,
+                "minReps": 3
+              }
             },
             {
               "id": "d2-bench-t2",
               "exerciseId": "bench",
               "label": "T2",
               "sets": [
-                { "load": { "kind": "pctOfTM", "pct": 0.55 }, "reps": 10 },
-                { "load": { "kind": "pctOfTM", "pct": 0.65 }, "reps": 8 },
-                { "load": { "kind": "pctOfTM", "pct": 0.65 }, "reps": 8 },
-                { "load": { "kind": "pctOfTM", "pct": 0.65 }, "reps": 8 },
-                { "load": { "kind": "pctOfTM", "pct": 0.65 }, "reps": 8 }
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.55
+                  },
+                  "reps": 10
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.65
+                  },
+                  "reps": 8
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.65
+                  },
+                  "reps": 8
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.65
+                  },
+                  "reps": 8
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.65
+                  },
+                  "reps": 8
+                }
               ]
             },
             {
@@ -90,13 +249,43 @@
               "exerciseId": "machineCurl",
               "label": "accessory",
               "sets": [
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5, "amrapRole": "backoff" }
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5,
+                  "amrapRole": "backoff"
+                }
               ],
               "progressionRuleId": "repLadder",
-              "progressionParams": { "sets": 4, "repMin": 5, "repMax": 7, "weightStep": 5 }
+              "progressionParams": {
+                "sets": 4,
+                "repMin": 5,
+                "repMax": 7,
+                "weightStep": 5
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.3
+              }
             }
           ]
         },
@@ -110,41 +299,141 @@
               "exerciseId": "squat",
               "label": "T1",
               "sets": [
-                { "load": { "kind": "pctOfTM", "pct": 0.65 }, "reps": 5 },
-                { "load": { "kind": "pctOfTM", "pct": 0.8 }, "reps": 3 },
-                { "load": { "kind": "pctOfTM", "pct": 0.95 }, "reps": 1, "amrapRole": "topSet" },
-                { "load": { "kind": "pctOfTM", "pct": 0.8 }, "reps": 3 },
-                { "load": { "kind": "pctOfTM", "pct": 0.8 }, "reps": 3 },
-                { "load": { "kind": "pctOfTM", "pct": 0.8 }, "reps": 3 }
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.65
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.8
+                  },
+                  "reps": 3
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.95
+                  },
+                  "reps": 1,
+                  "amrapRole": "topSet"
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.8
+                  },
+                  "reps": 3
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.8
+                  },
+                  "reps": 3
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.8
+                  },
+                  "reps": 3
+                }
               ],
               "progressionRuleId": "linearTopSet",
-              "progressionParams": { "increment": 5, "minReps": 3 }
+              "progressionParams": {
+                "increment": 5,
+                "minReps": 3
+              }
             },
             {
               "id": "d3-bulgarian",
               "exerciseId": "bulgarianSplitSquat",
               "label": "T2",
               "sets": [
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5, "amrapRole": "backoff" }
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5,
+                  "amrapRole": "backoff"
+                }
               ],
               "progressionRuleId": "repLadder",
-              "progressionParams": { "sets": 4, "repMin": 5, "repMax": 7, "weightStep": 2.5 }
+              "progressionParams": {
+                "sets": 4,
+                "repMin": 5,
+                "repMax": 7,
+                "weightStep": 2.5
+              },
+              "defaultLoad": {
+                "ref": "squat",
+                "pct": 0.25
+              }
             },
             {
               "id": "d3-calf",
               "exerciseId": "calfRaise",
               "label": "accessory",
               "sets": [
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5, "amrapRole": "backoff" }
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5,
+                  "amrapRole": "backoff"
+                }
               ],
               "progressionRuleId": "repLadder",
-              "progressionParams": { "sets": 4, "repMin": 5, "repMax": 7, "weightStep": 5 }
+              "progressionParams": {
+                "sets": 4,
+                "repMin": 5,
+                "repMax": 7,
+                "weightStep": 5
+              },
+              "defaultLoad": {
+                "ref": "squat",
+                "pct": 0.5
+              }
             }
           ]
         },
@@ -158,41 +447,142 @@
               "exerciseId": "tbarRow",
               "label": "T1",
               "sets": [
-                { "load": { "kind": "pctOfTM", "pct": 0.7 }, "reps": 5 },
-                { "load": { "kind": "pctOfTM", "pct": 0.85 }, "reps": 3 },
-                { "load": { "kind": "pctOfTM", "pct": 0.95 }, "reps": 1, "amrapRole": "topSet" },
-                { "load": { "kind": "pctOfTM", "pct": 0.8 }, "reps": 3 },
-                { "load": { "kind": "pctOfTM", "pct": 0.8 }, "reps": 3 },
-                { "load": { "kind": "pctOfTM", "pct": 0.8 }, "reps": 3, "amrapRole": "backoff" }
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.7
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.85
+                  },
+                  "reps": 3
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.95
+                  },
+                  "reps": 1,
+                  "amrapRole": "topSet"
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.8
+                  },
+                  "reps": 3
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.8
+                  },
+                  "reps": 3
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.8
+                  },
+                  "reps": 3,
+                  "amrapRole": "backoff"
+                }
               ],
               "progressionRuleId": "linearTopSet",
-              "progressionParams": { "increment": 2.5, "minReps": 3 }
+              "progressionParams": {
+                "increment": 2.5,
+                "minReps": 3
+              }
             },
             {
               "id": "d4-onearm",
               "exerciseId": "oneArmRow",
               "label": "T2",
               "sets": [
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5, "amrapRole": "backoff" }
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5,
+                  "amrapRole": "backoff"
+                }
               ],
               "progressionRuleId": "repLadder",
-              "progressionParams": { "sets": 4, "repMin": 5, "repMax": 7, "weightStep": 2.5 }
+              "progressionParams": {
+                "sets": 4,
+                "repMin": 5,
+                "repMax": 7,
+                "weightStep": 2.5
+              },
+              "defaultLoad": {
+                "ref": "deadlift",
+                "pct": 0.22
+              }
             },
             {
               "id": "d4-reardelt",
               "exerciseId": "rearDeltFly",
               "label": "accessory",
               "sets": [
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5, "amrapRole": "backoff" }
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5,
+                  "amrapRole": "backoff"
+                }
               ],
               "progressionRuleId": "repLadder",
-              "progressionParams": { "sets": 4, "repMin": 5, "repMax": 7, "weightStep": 2.5 }
+              "progressionParams": {
+                "sets": 4,
+                "repMin": 5,
+                "repMax": 7,
+                "weightStep": 2.5
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.12
+              }
             }
           ]
         },
@@ -206,42 +596,139 @@
               "exerciseId": "bench",
               "label": "T1",
               "sets": [
-                { "load": { "kind": "pctOfTM", "pct": 0.7 }, "reps": 5 },
-                { "load": { "kind": "pctOfTM", "pct": 0.85 }, "reps": 3 },
-                { "load": { "kind": "pctOfTM", "pct": 0.95 }, "reps": 1, "amrapRole": "topSet" },
-                { "load": { "kind": "pctOfTM", "pct": 0.8 }, "reps": 3 },
-                { "load": { "kind": "pctOfTM", "pct": 0.8 }, "reps": 3 },
-                { "load": { "kind": "pctOfTM", "pct": 0.8 }, "reps": 3, "amrapRole": "backoff" }
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.7
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.85
+                  },
+                  "reps": 3
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.95
+                  },
+                  "reps": 1,
+                  "amrapRole": "topSet"
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.8
+                  },
+                  "reps": 3
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.8
+                  },
+                  "reps": 3
+                },
+                {
+                  "load": {
+                    "kind": "pctOfTM",
+                    "pct": 0.8
+                  },
+                  "reps": 3,
+                  "amrapRole": "backoff"
+                }
               ],
               "progressionRuleId": "linearTopSet",
-              "progressionParams": { "increment": 2.5, "minReps": 3 }
+              "progressionParams": {
+                "increment": 2.5,
+                "minReps": 3
+              }
             },
             {
               "id": "d5-cgbp",
               "exerciseId": "cgbp",
               "label": "T2",
               "sets": [
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5, "amrapRole": "backoff" }
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5,
+                  "amrapRole": "backoff"
+                }
               ],
               "progressionRuleId": "repLadder",
-              "progressionParams": { "sets": 4, "repMin": 5, "repMax": 7, "weightStep": 2.5 }
+              "progressionParams": {
+                "sets": 4,
+                "repMin": 5,
+                "repMax": 7,
+                "weightStep": 2.5
+              },
+              "defaultLoad": {
+                "ref": "bench",
+                "pct": 0.55
+              }
             },
             {
               "id": "d5-lateral",
               "exerciseId": "lateralRaise",
               "label": "accessory",
               "sets": [
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 },
-                { "load": { "kind": "tracked" }, "reps": 5 }
-              ]
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                },
+                {
+                  "load": {
+                    "kind": "tracked"
+                  },
+                  "reps": 5
+                }
+              ],
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.12
+              }
             }
           ]
         }
       ]
+    }
+  ],
+  "tmSeeds": [
+    {
+      "exerciseId": "tbarRow",
+      "ref": "deadlift",
+      "pct": 0.65
     }
   ]
 }

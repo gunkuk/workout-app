@@ -48,6 +48,10 @@
                 "repMax": 9,
                 "weightStep": 5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "ref": "deadlift",
+                "pct": 0.55
               }
             },
             {
@@ -86,6 +90,9 @@
                 "repMax": 10,
                 "weightStep": 2.5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "kg": 5
               }
             },
             {
@@ -118,6 +125,9 @@
                 "repMax": 15,
                 "weightStep": 5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "kg": 10
               }
             },
             {
@@ -150,6 +160,10 @@
                 "repMax": 20,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.12
               }
             },
             {
@@ -182,6 +196,9 @@
                 "repMax": 15,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "kg": 5
               }
             }
           ]
@@ -303,6 +320,10 @@
                 "repMax": 12,
                 "weightStep": 5,
                 "sets": 2
+              },
+              "defaultLoad": {
+                "ref": "squat",
+                "pct": 0.8
               }
             }
           ]
@@ -439,6 +460,10 @@
                 "repMax": 20,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.12
               }
             },
             {
@@ -464,7 +489,10 @@
                   },
                   "reps": 10
                 }
-              ]
+              ],
+              "defaultLoad": {
+                "kg": 5
+              }
             }
           ]
         },
@@ -596,6 +624,10 @@
                 "repMax": 20,
                 "weightStep": 5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "squat",
+                "pct": 0.5
               }
             }
           ]
@@ -742,6 +774,10 @@
                 "repMax": 12,
                 "weightStep": 5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.3
               }
             }
           ]
@@ -791,6 +827,10 @@
                 "repMax": 9,
                 "weightStep": 5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "ref": "deadlift",
+                "pct": 0.55
               }
             },
             {
@@ -829,6 +869,9 @@
                 "repMax": 10,
                 "weightStep": 2.5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "kg": 5
               }
             },
             {
@@ -861,6 +904,9 @@
                 "repMax": 15,
                 "weightStep": 5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "kg": 10
               }
             },
             {
@@ -893,6 +939,10 @@
                 "repMax": 20,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.12
               }
             },
             {
@@ -925,6 +975,9 @@
                 "repMax": 15,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "kg": 5
               }
             }
           ]
@@ -1058,6 +1111,10 @@
                 "repMax": 12,
                 "weightStep": 5,
                 "sets": 2
+              },
+              "defaultLoad": {
+                "ref": "squat",
+                "pct": 0.8
               }
             }
           ]
@@ -1194,6 +1251,10 @@
                 "repMax": 20,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.12
               }
             },
             {
@@ -1219,7 +1280,10 @@
                   },
                   "reps": 10
                 }
-              ]
+              ],
+              "defaultLoad": {
+                "kg": 5
+              }
             }
           ]
         },
@@ -1351,6 +1415,10 @@
                 "repMax": 20,
                 "weightStep": 5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "squat",
+                "pct": 0.5
               }
             }
           ]
@@ -1497,6 +1565,10 @@
                 "repMax": 12,
                 "weightStep": 5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.3
               }
             }
           ]
@@ -1546,6 +1618,10 @@
                 "repMax": 9,
                 "weightStep": 5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "ref": "deadlift",
+                "pct": 0.55
               }
             },
             {
@@ -1584,6 +1660,9 @@
                 "repMax": 10,
                 "weightStep": 2.5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "kg": 5
               }
             },
             {
@@ -1616,6 +1695,9 @@
                 "repMax": 15,
                 "weightStep": 5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "kg": 10
               }
             },
             {
@@ -1648,6 +1730,10 @@
                 "repMax": 20,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.12
               }
             },
             {
@@ -1680,6 +1766,9 @@
                 "repMax": 15,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "kg": 5
               }
             }
           ]
@@ -1801,6 +1890,10 @@
                 "repMax": 12,
                 "weightStep": 5,
                 "sets": 2
+              },
+              "defaultLoad": {
+                "ref": "squat",
+                "pct": 0.8
               }
             }
           ]
@@ -1937,6 +2030,10 @@
                 "repMax": 20,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.12
               }
             },
             {
@@ -1962,7 +2059,10 @@
                   },
                   "reps": 10
                 }
-              ]
+              ],
+              "defaultLoad": {
+                "kg": 5
+              }
             }
           ]
         },
@@ -2094,6 +2194,10 @@
                 "repMax": 20,
                 "weightStep": 5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "squat",
+                "pct": 0.5
               }
             }
           ]
@@ -2240,6 +2344,10 @@
                 "repMax": 12,
                 "weightStep": 5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.3
               }
             }
           ]
@@ -2289,6 +2397,10 @@
                 "repMax": 9,
                 "weightStep": 5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "ref": "deadlift",
+                "pct": 0.55
               }
             },
             {
@@ -2327,6 +2439,9 @@
                 "repMax": 10,
                 "weightStep": 2.5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "kg": 5
               }
             },
             {
@@ -2359,6 +2474,9 @@
                 "repMax": 15,
                 "weightStep": 5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "kg": 10
               }
             },
             {
@@ -2391,6 +2509,10 @@
                 "repMax": 20,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.12
               }
             },
             {
@@ -2423,6 +2545,9 @@
                 "repMax": 15,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "kg": 5
               }
             }
           ]
@@ -2556,6 +2681,10 @@
                 "repMax": 12,
                 "weightStep": 5,
                 "sets": 2
+              },
+              "defaultLoad": {
+                "ref": "squat",
+                "pct": 0.8
               }
             }
           ]
@@ -2692,6 +2821,10 @@
                 "repMax": 20,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.12
               }
             },
             {
@@ -2717,7 +2850,10 @@
                   },
                   "reps": 10
                 }
-              ]
+              ],
+              "defaultLoad": {
+                "kg": 5
+              }
             }
           ]
         },
@@ -2849,6 +2985,10 @@
                 "repMax": 20,
                 "weightStep": 5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "squat",
+                "pct": 0.5
               }
             }
           ]
@@ -2995,6 +3135,10 @@
                 "repMax": 12,
                 "weightStep": 5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.3
               }
             }
           ]
@@ -3044,6 +3188,10 @@
                 "repMax": 9,
                 "weightStep": 5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "ref": "deadlift",
+                "pct": 0.55
               }
             },
             {
@@ -3082,6 +3230,9 @@
                 "repMax": 10,
                 "weightStep": 2.5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "kg": 5
               }
             },
             {
@@ -3114,6 +3265,9 @@
                 "repMax": 15,
                 "weightStep": 5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "kg": 10
               }
             },
             {
@@ -3146,6 +3300,10 @@
                 "repMax": 20,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.12
               }
             },
             {
@@ -3178,6 +3336,9 @@
                 "repMax": 15,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "kg": 5
               }
             }
           ]
@@ -3299,6 +3460,10 @@
                 "repMax": 12,
                 "weightStep": 5,
                 "sets": 2
+              },
+              "defaultLoad": {
+                "ref": "squat",
+                "pct": 0.8
               }
             }
           ]
@@ -3435,6 +3600,10 @@
                 "repMax": 20,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.12
               }
             },
             {
@@ -3460,7 +3629,10 @@
                   },
                   "reps": 10
                 }
-              ]
+              ],
+              "defaultLoad": {
+                "kg": 5
+              }
             }
           ]
         },
@@ -3592,6 +3764,10 @@
                 "repMax": 20,
                 "weightStep": 5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "squat",
+                "pct": 0.5
               }
             }
           ]
@@ -3738,6 +3914,10 @@
                 "repMax": 12,
                 "weightStep": 5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.3
               }
             }
           ]
@@ -3787,6 +3967,10 @@
                 "repMax": 9,
                 "weightStep": 5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "ref": "deadlift",
+                "pct": 0.55
               }
             },
             {
@@ -3825,6 +4009,9 @@
                 "repMax": 10,
                 "weightStep": 2.5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "kg": 5
               }
             },
             {
@@ -3857,6 +4044,9 @@
                 "repMax": 15,
                 "weightStep": 5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "kg": 10
               }
             },
             {
@@ -3889,6 +4079,10 @@
                 "repMax": 20,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.12
               }
             },
             {
@@ -3921,6 +4115,9 @@
                 "repMax": 15,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "kg": 5
               }
             }
           ]
@@ -4054,6 +4251,10 @@
                 "repMax": 12,
                 "weightStep": 5,
                 "sets": 2
+              },
+              "defaultLoad": {
+                "ref": "squat",
+                "pct": 0.8
               }
             }
           ]
@@ -4190,6 +4391,10 @@
                 "repMax": 20,
                 "weightStep": 2.5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.12
               }
             },
             {
@@ -4215,7 +4420,10 @@
                   },
                   "reps": 10
                 }
-              ]
+              ],
+              "defaultLoad": {
+                "kg": 5
+              }
             }
           ]
         },
@@ -4347,6 +4555,10 @@
                 "repMax": 20,
                 "weightStep": 5,
                 "sets": 3
+              },
+              "defaultLoad": {
+                "ref": "squat",
+                "pct": 0.5
               }
             }
           ]
@@ -4493,6 +4705,10 @@
                 "repMax": 12,
                 "weightStep": 5,
                 "sets": 4
+              },
+              "defaultLoad": {
+                "ref": "ohp",
+                "pct": 0.3
               }
             }
           ]
@@ -4529,7 +4745,11 @@
                   },
                   "reps": 6
                 }
-              ]
+              ],
+              "defaultLoad": {
+                "ref": "deadlift",
+                "pct": 0.55
+              }
             },
             {
               "id": "d1-pullup",
@@ -4554,7 +4774,10 @@
                   },
                   "reps": 6
                 }
-              ]
+              ],
+              "defaultLoad": {
+                "kg": 5
+              }
             }
           ]
         },

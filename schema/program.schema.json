@@ -3,78 +3,233 @@
   "$id": "workout-app/program.schema.json",
   "title": "ProgramDefinition",
   "type": "object",
-  "required": ["id", "name", "version", "schemaVersion", "weeks"],
+  "required": [
+    "id",
+    "name",
+    "version",
+    "schemaVersion",
+    "weeks"
+  ],
   "additionalProperties": false,
   "properties": {
-    "id": { "type": "string", "minLength": 1 },
-    "name": { "type": "string", "minLength": 1 },
-    "description": { "type": "string" },
-    "version": { "type": "integer", "minimum": 1 },
-    "schemaVersion": { "const": 1 },
-    "weeks": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/week" } }
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "weeks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/week"
+      }
+    },
+    "tmSeeds": {
+      "type": "array",
+      "description": "프로그램 활성화 시 누락 TM을 다른 TM에서 자동 시드(UI13). 기존 TM은 덮지 않음.",
+      "items": {
+        "type": "object",
+        "required": [
+          "exerciseId",
+          "ref",
+          "pct"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "exerciseId": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string"
+          },
+          "pct": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 2
+          }
+        }
+      }
+    }
   },
   "$defs": {
     "week": {
       "type": "object",
-      "required": ["days"],
+      "required": [
+        "days"
+      ],
       "additionalProperties": false,
       "properties": {
-        "days": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/day" } }
+        "days": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/day"
+          }
+        }
       }
     },
     "day": {
       "type": "object",
-      "required": ["ordinal", "name", "slots"],
+      "required": [
+        "ordinal",
+        "name",
+        "slots"
+      ],
       "additionalProperties": false,
       "properties": {
-        "ordinal": { "type": "integer", "minimum": 1 },
-        "weekdayHint": { "type": "string" },
-        "name": { "type": "string", "minLength": 1 },
-        "slots": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/slot" } }
+        "ordinal": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "weekdayHint": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "slots": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/slot"
+          }
+        }
       }
     },
     "slot": {
       "type": "object",
-      "required": ["id", "exerciseId", "label", "sets"],
+      "required": [
+        "id",
+        "exerciseId",
+        "label",
+        "sets"
+      ],
       "additionalProperties": false,
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "exerciseId": { "type": "string", "minLength": 1 },
-        "label": { "type": "string", "minLength": 1 },
-        "groupId": { "type": "string" },
-        "warmupRuleId": { "type": "string" },
-        "progressionRuleId": { "type": "string" },
-        "progressionParams": { "type": "object" },
-        "sets": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/set" } }
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exerciseId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "groupId": {
+          "type": "string"
+        },
+        "warmupRuleId": {
+          "type": "string"
+        },
+        "progressionRuleId": {
+          "type": "string"
+        },
+        "progressionParams": {
+          "type": "object"
+        },
+        "defaultLoad": {
+          "type": "object",
+          "description": "tracked 슬롯의 최초 무게 유도(UI13). kg 절대값 또는 ref TM × pct.",
+          "properties": {
+            "ref": {
+              "type": "string"
+            },
+            "pct": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 2
+            },
+            "kg": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "sets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/set"
+          }
+        }
       }
     },
     "set": {
       "type": "object",
-      "required": ["load", "reps"],
+      "required": [
+        "load",
+        "reps"
+      ],
       "additionalProperties": false,
       "properties": {
-        "load": { "$ref": "#/$defs/load" },
-        "reps": { "type": "integer", "minimum": 1 },
-        "amrapRole": { "enum": ["topSet", "backoff"] }
+        "load": {
+          "$ref": "#/$defs/load"
+        },
+        "reps": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "amrapRole": {
+          "enum": [
+            "topSet",
+            "backoff"
+          ]
+        }
       }
     },
     "load": {
       "oneOf": [
         {
           "type": "object",
-          "required": ["kind", "pct"],
+          "required": [
+            "kind",
+            "pct"
+          ],
           "additionalProperties": false,
           "properties": {
-            "kind": { "const": "pctOfTM" },
-            "ref": { "type": "string", "minLength": 1 },
-            "pct": { "type": "number", "exclusiveMinimum": 0, "maximum": 1.2 }
+            "kind": {
+              "const": "pctOfTM"
+            },
+            "ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "pct": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1.2
+            }
           }
         },
         {
           "type": "object",
-          "required": ["kind"],
+          "required": [
+            "kind"
+          ],
           "additionalProperties": false,
-          "properties": { "kind": { "const": "tracked" } }
+          "properties": {
+            "kind": {
+              "const": "tracked"
+            }
+          }
         }
       ]
     }
