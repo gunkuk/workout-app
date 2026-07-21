@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useProgramStore } from "../../store/programStore";
 import { loadEventLog, loadSetTimings, type SessionNote, type SetTiming } from "../../store/queries";
 import { nowISO } from "../../lib/time";
@@ -42,6 +42,8 @@ export type UseTodaySessionResult = {
   handleRestoreOriginal: () => void;
   /** iOS<18.4 등 Wake Lock 미지원 안내(1회) — 지원 환경/알 수 없는 UA면 null. */
   wakeLockNotice: string | null;
+  /** UI14 item7 — ActivityTimer의 autoStartTrigger prop에 그대로 전달. */
+  autoStartTrigger: number;
 };
 
 /**
@@ -78,6 +80,10 @@ export function useTodaySession(onSessionComplete?: () => void): UseTodaySession
    *  그 슬롯 하단에 RestTimer 1개가 계속 표시된다(세트마다 새로 마운트하지 않음). */
   const [timerVisibleSlots, setTimerVisibleSlots] = useState<Record<string, boolean>>({});
   const [wakeLockNotice, setWakeLockNotice] = useState<string | null>(null);
+  /** UI14 item7 — 이 세션의 "첫 세트 완료" 시점에 1회 증가(활동 타이머 자동시작 트리거). ref로
+   *  "이미 한 번 쐈는지"만 판정하고, ActivityTimer에는 useState 값을 넘겨 그 변화를 effect로 감지하게 한다. */
+  const firstCompleteFiredRef = useRef(false);
+  const [autoStartTrigger, setAutoStartTrigger] = useState(0);
 
   // Wake Lock — 세션 화면 마운트 시 획득, 언마운트 시 해제(스펙 §2-5). iOS<18.4는 API 자체가 없어
   // acquireWakeLock이 조용히 no-op하므로, 그 경우에만 1회 안내 문구를 노출한다.
@@ -188,13 +194,22 @@ export function useTodaySession(onSessionComplete?: () => void): UseTodaySession
   const handleComplete = useCallback(
     (id: string, slot: PlannedSlot, planned: PlannedSet, weight: number, reps: number, swappedFrom?: string) => {
       if (!sessionId) return;
+      // UI14 item7 — 이 세션에서 handleComplete가 처음 호출되는 순간(워밍업 자동기록은 이 경로를
+      // 안 타므로 사실상 "사용자가 처음 탭한 세트") 활동 타이머 자동시작 트리거를 1회 증가.
+      if (!firstCompleteFiredRef.current) {
+        firstCompleteFiredRef.current = true;
+        setAutoStartTrigger((n) => n + 1);
+      }
       const now = nowISO();
       const rec: SetRecord = {
         id,
         sessionId,
         slotId: slot.slotId,
         exerciseId: slot.exerciseId,
-        setType: "work",
+        // UI14 item2 — 워밍업 세트도 SetRow(같은 완료 메커니즘)로 렌더되면서 handleComplete를 공유하므로
+        // planned.setType을 그대로 반영(이전엔 "work" 하드코딩 — 워밍업은 실질적으로 마운트 시 자동
+        // 기록이 항상 먼저 끝나 이 경로를 거의 안 타지만, 레이스로 탈 경우도 정확한 타입을 남겨야 한다).
+        setType: planned.setType,
         targetWeight: planned.weight,
         targetReps: planned.reps,
         actualWeight: weight,
@@ -381,5 +396,6 @@ export function useTodaySession(onSessionComplete?: () => void): UseTodaySession
     handlePainDay,
     handleRestoreOriginal,
     wakeLockNotice,
+    autoStartTrigger,
   };
 }

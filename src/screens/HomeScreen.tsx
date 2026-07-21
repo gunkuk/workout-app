@@ -4,7 +4,7 @@ import { loadEventLog, loadBodyMetrics, loadInjuries, type BodyMetric, type Inju
 import { exerciseInfo } from "../domain/exerciseLibrary";
 import { LineChart } from "../components/LineChart";
 import { nowISO } from "../lib/time";
-import { trainingWeekdays, buildAttendanceGrid, thisWeekSummary } from "./home/attendance";
+import { trainingWeekdays, buildMonthGrid, monthSummary } from "./home/attendance";
 import { combinedT1Performance, est1RM, liftSummary } from "./home/performance";
 import { activeSessions } from "../store/sessionRevocation";
 import type { FoldInput } from "../domain/types.ts";
@@ -52,7 +52,7 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
   const addInjuryMutation = useProgramStore((s) => s.addInjury);
   const resolveInjuryMutation = useProgramStore((s) => s.resolveInjury);
 
-  const [completedThisWeek, setCompletedThisWeek] = useState(0);
+  const [cycleCompleted, setCycleCompleted] = useState(0);
   const [foldInput, setFoldInput] = useState<FoldInput | null>(null);
   const [bodyMetrics, setBodyMetrics] = useState<BodyMetric[] | null>(null);
   const [injuries, setInjuries] = useState<InjuryLog[] | null>(null);
@@ -70,21 +70,18 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
       if (cancelled) return;
       setFoldInput(input);
       if (!todayPos) {
-        setCompletedThisWeek(0);
+        setCycleCompleted(0);
         return;
       }
-      // 취소(revoked)된 세션은 이번 주 완료 카운트에서 제외(Stage1-UI9).
-      const ids = new Set(
+      // UI14 item4 — "이번 주"가 아니라 "이번 사이클"(현재 cycleIndex 전체, 모든 주) 진행도.
+      // (week,dayOrdinal) 쌍 단위로 유일화한다 — 같은 날에 세션이 여러 개(재시작 등) 있어도 1로
+      // 센다. 취소(revoked)된 세션은 제외(Stage1-UI9와 동일 원칙).
+      const pairs = new Set(
         activeSessions(input.sessions, input.corrections)
-          .filter(
-            (s) =>
-              s.status === "completed" &&
-              s.cyclePos.cycleIndex === todayPos.cycleIndex &&
-              s.cyclePos.week === todayPos.week,
-          )
-          .map((s) => s.sessionId),
+          .filter((s) => s.status === "completed" && s.cyclePos.cycleIndex === todayPos.cycleIndex)
+          .map((s) => `${s.cyclePos.week}-${s.cyclePos.dayOrdinal}`),
       );
-      setCompletedThisWeek(ids.size);
+      setCycleCompleted(pairs.size);
     })();
     return () => {
       cancelled = true;
@@ -147,11 +144,12 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
   const weekdays = useMemo(() => trainingWeekdays(activeProgram), [activeProgram]);
   // UI7 — 좌상 "출석" 카드는 Boostcamp풍 4주 미니 스트립(기존 buildAttendanceGrid의 weeksCount 파라미터
   // 재사용, 신규 헬퍼 불필요).
+  // UI14 item5 — 주간/4주 스트립 대신 실제 월간 달력(이번 달, 요일 7열 고정) 그리드로 교체.
   const grid = useMemo(
-    () => (foldInput ? buildAttendanceGrid(foldInput.sessions, foldInput.sets, weekdays, new Date(), 4) : null),
+    () => (foldInput ? buildMonthGrid(foldInput.sessions, foldInput.sets, weekdays, new Date()) : null),
     [foldInput, weekdays],
   );
-  const summary = grid ? thisWeekSummary(grid) : null;
+  const summary = grid ? monthSummary(grid) : null;
   const performancePoints = useMemo(() => (foldInput ? combinedT1Performance(foldInput) : []), [foldInput]);
   const activeInjuries = injuries?.filter((i) => !i.resolvedAt) ?? [];
 
@@ -177,9 +175,12 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
     return <div className="loading-state">로딩 중...</div>;
   }
 
-  const weekDays = activeProgram.weeks[todayPos?.week ?? 0]?.days ?? activeProgram.weeks[0]?.days ?? [];
-  const totalThisWeek = weekDays.length;
-  const percent = totalThisWeek > 0 ? Math.round((completedThisWeek / totalThisWeek) * 100) : 0;
+  // UI14 item4 — "이번 주"가 아니라 프로그램 전체 사이클(activeProgram.weeks 전부 × 주당 일수) 기준
+  // 진행도. kk-6day처럼 1주 반복 프로그램은 "전체"와 "이번 주"가 우연히 같아지므로 별도 분기 불필요.
+  const totalThisCycle = activeProgram.weeks.reduce((n, w) => n + w.days.length, 0);
+  const totalWeeks = activeProgram.weeks.length;
+  const currentWeekNum = (todayPos?.week ?? 0) + 1;
+  const percent = totalThisCycle > 0 ? Math.round((cycleCompleted / totalThisCycle) * 100) : 0;
 
   return (
     <div>
@@ -192,7 +193,7 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
           />
         </div>
         <p className="form-label">
-          이번 주 {completedThisWeek}/{totalThisWeek} 완료
+          이번 사이클 {cycleCompleted}/{totalThisCycle} 완료 · {percent}% · {currentWeekNum}/{totalWeeks}주차
         </p>
         <span style={{ color: "var(--gold)", fontWeight: "bold", fontSize: "32px" }}>{percent}%</span>
       </div>
@@ -231,24 +232,39 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
               <div className="dashboard-stat-big">
                 {summary.completed}/{summary.total}
               </div>
-              <p className="form-label">이번 주 · 수행률 {summary.percent}%</p>
+              <p className="form-label">이번 달 · 수행률 {summary.percent}%</p>
             </>
           )}
+          {/* UI14 item5 — 실제 월간 달력(요일 7열 고정, 이번 달만). 숫자 없이 색상만(완료/부분/없음/
+              훈련일 아님 4종) — 날짜 라벨은 의도적으로 렌더하지 않는다(요구사항: "색상만"). */}
           {grid && (
-            <div className="attendance-strip attendance-strip-compact">
-              {grid.weekdays.map((wd, rowIdx) => (
-                <div className="attendance-row" key={wd}>
-                  <span className="attendance-row-label">{wd}</span>
-                  {grid.weeks.map((week, colIdx) => {
-                    const status = week.cells[rowIdx];
-                    return (
-                      <span
-                        key={colIdx}
-                        data-testid={`attendance-cell-${rowIdx}-${colIdx}`}
-                        className={`attendance-cell${status === "complete" ? " is-complete" : status === "partial" ? " is-partial" : ""}`}
-                      />
-                    );
-                  })}
+            <div className="attendance-calendar">
+              <div className="attendance-calendar-header">
+                {grid.weekdayLabels.map((wd) => (
+                  <span key={wd} className="attendance-calendar-weekday">
+                    {wd}
+                  </span>
+                ))}
+              </div>
+              {grid.weeks.map((week, weekIdx) => (
+                <div className="attendance-calendar-row" key={weekIdx}>
+                  {week.map((cell, dayIdx) => (
+                    <span
+                      key={dayIdx}
+                      data-testid={`attendance-cell-${cell.date ?? `pad-${weekIdx}-${dayIdx}`}`}
+                      className={`attendance-cell${
+                        cell.date === null
+                          ? " is-empty"
+                          : cell.status === "complete"
+                            ? " is-complete"
+                            : cell.status === "partial"
+                              ? " is-partial"
+                              : cell.status === "off"
+                                ? " is-off"
+                                : ""
+                      }`}
+                    />
+                  ))}
                 </div>
               ))}
             </div>
@@ -351,10 +367,9 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
           {liftRows.length > 0 && (
             <ul className="lift-summary-list">
               {liftRows.map((row) => (
-                <li key={row.exerciseId} className="lift-summary-row">
-                  <span className="lift-summary-name">
-                    {row.name} {row.tm}
-                  </span>
+                <li key={row.exerciseId} className="lift-summary-row" data-testid={`lift-summary-${row.exerciseId}`}>
+                  {/* UI14 item6 — TM 표시 제거, 환산 1RM만(TM 편집은 프로그램 탭으로 이동, item9). */}
+                  <span className="lift-summary-name">{row.name}</span>
                   <span className="lift-summary-est">≈{row.est1RM}</span>
                   {row.measuredE1RM !== undefined && (
                     <span className="lift-summary-measured">측정 {row.measuredE1RM}</span>

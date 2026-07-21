@@ -2,6 +2,8 @@ import { useState } from "react";
 import { ProgramLibrary } from "../components/ProgramLibrary";
 import { useProgramStore } from "../store/programStore";
 import { exerciseInfo } from "../domain/exerciseLibrary";
+import { est1RM } from "./home/performance";
+import { nowISO } from "../lib/time";
 import type { CyclePos, ProgramDefinition, DaySpec, SlotSpec } from "../domain/types.ts";
 
 /**
@@ -223,6 +225,77 @@ function FastForwardCard() {
   );
 }
 
+/**
+ * TM/1RM 편집(UI14 item9 — SettingsScreen의 "TM 수동 편집"에서 이관, 원래 Stage1-C3 T4).
+ * programStore.tm을 그대로 렌더하고, 저장 시 DecisionEvent{kind:"manual"}을 만들어 기존
+ * `acceptProposal` mutation을 재사용한다 — 이름은 "제안 수락"이지만 본질은 appendDecision+refresh라
+ * 임의의 결정(수동 편집 포함)에 그대로 맞는다. 대칭성(item9 요구)을 위해 각 행에 읽기전용 환산
+ * 1RM(est1RM = TM/0.9)도 함께 보여준다 — liftSummary()와 동일한 환산식(home/performance.ts) 재사용.
+ */
+function TmEditCard() {
+  const tm = useProgramStore((s) => s.tm);
+  const acceptProposal = useProgramStore((s) => s.acceptProposal);
+  const [tmEdits, setTmEdits] = useState<Record<string, string>>({});
+  const [tmError, setTmError] = useState<string | null>(null);
+
+  async function handleTmSave(exerciseId: string) {
+    const raw = tmEdits[exerciseId];
+    const value = raw === undefined ? NaN : Number(raw);
+    if (raw === undefined || raw.trim() === "" || !Number.isFinite(value)) {
+      setTmError("올바른 숫자를 입력해주세요.");
+      return;
+    }
+    setTmError(null);
+    await acceptProposal({
+      id: crypto.randomUUID(),
+      target: { kind: "tm", exerciseId },
+      kind: "manual",
+      value,
+      at: nowISO(),
+      schemaVersion: 1,
+    });
+    setTmEdits((prev) => {
+      const next = { ...prev };
+      delete next[exerciseId];
+      return next;
+    });
+  }
+
+  if (Object.keys(tm).length === 0) return null;
+
+  return (
+    <section className="settings-card">
+      <h3>TM / 1RM 편집</h3>
+      {tmError && (
+        <div role="alert" className="alert">
+          {tmError}
+        </div>
+      )}
+      <ul>
+        {Object.entries(tm).map(([exerciseId, value]) => (
+          <li key={exerciseId}>
+            {exerciseId}: {value}{" "}
+            <span className="form-label" style={{ marginBottom: 0 }}>
+              (환산 1RM ≈{est1RM(value)})
+            </span>
+            <input
+              type="number"
+              data-testid={`tm-input-${exerciseId}`}
+              className="free-input"
+              value={tmEdits[exerciseId] ?? ""}
+              placeholder={String(value)}
+              onChange={(e) => setTmEdits((prev) => ({ ...prev, [exerciseId]: e.target.value }))}
+            />
+            <button type="button" className="btn btn-secondary" onClick={() => handleTmSave(exerciseId)}>
+              저장
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function ProgramScreen() {
   const description = useProgramStore((s) => s.activeProgram?.description);
   const activeProgram = useProgramStore((s) => s.activeProgram);
@@ -253,6 +326,7 @@ export function ProgramScreen() {
         </div>
       )}
       {activeProgram && instanceMode === "rolling" && <FastForwardCard />}
+      {activeProgram && <TmEditCard />}
       <ProgramLibrary />
     </div>
   );

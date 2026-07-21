@@ -61,16 +61,31 @@ describe("kk-6day 시드 — 로드·검증", () => {
     const benchRuled = benchSlots.filter((s) => s.progressionRuleId);
     expect(benchRuled.map((s) => s.id)).toEqual(["d5-bench"]);
 
+    // UI14 item3 — 월↔화 악세사리 스왑: 레터럴레이즈는 이제 화(accessory, 규칙 있음) + 토(accessory, 규칙 없음).
     const lateralSlots = slots.filter((s) => s.exerciseId === "lateralRaise");
-    expect(lateralSlots).toHaveLength(2); // 월 accessory + 토 accessory
+    expect(lateralSlots).toHaveLength(2); // 화 accessory + 토 accessory
     const lateralRuled = lateralSlots.filter((s) => s.progressionRuleId);
-    expect(lateralRuled.map((s) => s.id)).toEqual(["d1-lateral"]);
+    expect(lateralRuled.map((s) => s.id)).toEqual(["d2-lateral"]);
   });
 
   it("데드리프트 부재 — 허리 부상 대응으로 프로그램에 exerciseId 'deadlift' 슬롯 없음", () => {
     const p = loadKk6day();
     const slots = p.weeks[0]!.days.flatMap((d) => d.slots);
     expect(slots.some((s) => s.exerciseId === "deadlift")).toBe(false);
+  });
+
+  // UI14 item1 — 워밍업 버그 fix: tracked 슬롯(CGBP, defaultLoad = bench 55%)도 pctOfTM 슬롯과
+  // 동일하게 실제 참조 무게 기준 워밍업을 받아야 한다(이전엔 load.kind !== "pctOfTM"이면 무조건
+  // []을 반환하는 버그로, bench TM 100 → CGBP 55kg인데도 워밍업이 전혀 없었다).
+  it("토요일 CGBP(T2, tracked, defaultLoad ref bench pct 0.55) — 참조 무게 55kg 기준 워밍업 생성", () => {
+    const p = loadKk6day();
+    const TM2 = { bench: 100, ohp: 60, squat: 100 };
+    const plan = buildWorkoutPlan(p, { cycleIndex: 0, week: 0, dayOrdinal: 5 }, TM2, {}, DEFAULT_PLATES)!;
+    const cgbp = plan.slots.find((s) => s.slotId === "d5-cgbp")!;
+    expect(cgbp.sets.every((s) => s.weight === 55)).toBe(true);
+    expect(cgbp.needsInit).toBe(false);
+    expect(cgbp.warmups.length).toBeGreaterThan(0);
+    expect(cgbp.warmups.every((w) => w.weight !== null && w.weight < 55)).toBe(true);
   });
 });
 

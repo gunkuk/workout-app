@@ -1,17 +1,23 @@
 import type { ProgramDefinition, SessionCompleted, SetRecord } from "../../domain/types.ts";
 
 /**
- * UI5 T2 — 홈 대시보드 "출석·수행 스트립" 순수 파생 로직. 날짜 버킷팅(로컬 타임존, Monday-start 주)이
+ * UI5 T2 — 홈 대시보드 "출석" 카드 순수 파생 로직. 날짜 버킷팅(로컬 타임존, Monday-start 주)이
  * 까다로워 렌더 코드에서 분리해 직접 단위 테스트한다(계획 §4번 항목 "date bucketing is fiddly").
+ *
+ * UI14 item5 — 주간/4주 스트립을 실제 "월간 달력" 그리드로 교체(buildMonthGrid). 열 = 요일
+ * (월~일 7열 고정), 행 = 그 달의 주차, 셀은 날짜 숫자 없이 색상만(완료/부분/없음/훈련일 아님
+ * 4종) — 렌더러(HomeScreen)가 숫자를 그리지 않는다는 계약이므로 여기선 상태만 계산해 넘긴다.
  */
 
 export type AttendanceStatus = "complete" | "partial" | "none";
-export type AttendanceWeekColumn = { weekStart: string; cells: AttendanceStatus[] };
-export type AttendanceGrid = { weekdays: string[]; weeks: AttendanceWeekColumn[] };
+/** 월간 달력 셀 상태 — 기존 3종 + 그 요일이 활성 프로그램의 훈련일이 아닌 경우("off", 은은한 4번째 스타일). */
+export type MonthDayStatus = AttendanceStatus | "off";
+/** date=null이면 이번 달 밖(주 앞/뒤 패딩) — 렌더러가 빈 칸으로 표시. */
+export type MonthCell = { date: string | null; status: MonthDayStatus };
+export type MonthGrid = { weekdayLabels: string[]; weeks: MonthCell[][] };
 
 /** Monday-start 요일 표준 순서. */
 const WEEKDAY_ORDER = ["월", "화", "수", "목", "금", "토", "일"];
-const WEEKDAY_OFFSET: Record<string, number> = Object.fromEntries(WEEKDAY_ORDER.map((w, i) => [w, i]));
 
 /** nSuns 5일 시드 프로그램 관례(화~토) — 활성 프로그램에 weekdayHint가 하나도 없을 때의 기본값. */
 const DEFAULT_WEEKDAYS = ["화", "수", "목", "금", "토"];
@@ -48,6 +54,12 @@ function mondayOf(d: Date): Date {
   return copy;
 }
 
+/** 로컬 요일 라벨(월~일). */
+function weekdayLabelOf(d: Date): string {
+  const dow = d.getDay(); // 0=일..6=토
+  return WEEKDAY_ORDER[dow === 0 ? 6 : dow - 1]!;
+}
+
 /**
  * 날짜별 상태 맵 — 완료 세션이 있으면 "complete"(최우선), 없고 세트기록 또는 skipped 세션이 있으면
  * "partial", 아무 기록도 없으면 (맵에 없음 → 호출부가 "none"으로 취급).
@@ -70,40 +82,61 @@ function dayStatusMap(sessions: SessionCompleted[], sets: SetRecord[]): Map<stri
 }
 
 /**
- * 최근 weeksCount(기본 8)주 × 훈련요일 그리드. 오래된 주 → 최신 주(오늘이 속한 주 포함) 순.
- * 주 경계는 Monday-start(월요일 시작) — 일요일은 그 전 월요일이 속한 주의 마지막 칸.
+ * today가 속한 달의 실제 달력 그리드 — 열은 항상 월~일 7열 고정(요일 라벨), 행은 그 달이 걸치는
+ * 주차 수(보통 5~6행). 이번 달 밖 날짜(첫 주 앞/마지막 주 뒤 패딩)는 date:null로 표시해 렌더러가
+ * 빈 칸을 그리게 한다. 이번 달 안의 날짜는: 완료/부분/없음(기존 3상태) 중 하나이거나, 그 요일이
+ * trainingWeekdaysList에 없으면(활성 프로그램이 그 요일엔 훈련 안 함) "off".
  */
-export function buildAttendanceGrid(
+export function buildMonthGrid(
   sessions: SessionCompleted[],
   sets: SetRecord[],
-  weekdays: string[],
+  trainingWeekdaysList: string[],
   today: Date,
-  weeksCount = 8,
-): AttendanceGrid {
+): MonthGrid {
   const statusByDate = dayStatusMap(sessions, sets);
-  const currentMonday = mondayOf(today);
+  const year = today.getFullYear();
+  const month = today.getMonth();
 
-  const weeks: AttendanceWeekColumn[] = [];
-  for (let w = weeksCount - 1; w >= 0; w--) {
-    const weekMonday = new Date(currentMonday);
-    weekMonday.setDate(weekMonday.getDate() - w * 7);
-    const cells: AttendanceStatus[] = weekdays.map((wd) => {
-      const offset = WEEKDAY_OFFSET[wd] ?? 0;
-      const cellDate = new Date(weekMonday);
-      cellDate.setDate(cellDate.getDate() + offset);
-      return statusByDate.get(localDateStr(cellDate)) ?? "none";
-    });
-    weeks.push({ weekStart: localDateStr(weekMonday), cells });
+  const firstOfMonth = new Date(year, month, 1);
+  const lastOfMonth = new Date(year, month + 1, 0);
+  const gridStart = mondayOf(firstOfMonth);
+  const gridEndMonday = mondayOf(lastOfMonth);
+  const gridEnd = new Date(gridEndMonday);
+  gridEnd.setDate(gridEnd.getDate() + 6); // 마지막 주의 일요일까지
+
+  const weeks: MonthCell[][] = [];
+  let cursor = new Date(gridStart);
+  while (cursor <= gridEnd) {
+    const row: MonthCell[] = [];
+    for (let i = 0; i < 7; i++) {
+      if (cursor.getMonth() !== month) {
+        row.push({ date: null, status: "none" });
+      } else {
+        const dateStr = localDateStr(cursor);
+        const recorded = statusByDate.get(dateStr);
+        const status: MonthDayStatus =
+          recorded ?? (trainingWeekdaysList.includes(weekdayLabelOf(cursor)) ? "none" : "off");
+        row.push({ date: dateStr, status });
+      }
+      cursor = new Date(cursor);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    weeks.push(row);
   }
-  return { weekdays, weeks };
+  return { weekdayLabels: WEEKDAY_ORDER, weeks };
 }
 
-/** 이번 주(그리드 마지막 열) 요약 — "이번 주 n/5 완료 · 수행률 m%" 헤더용(m = completed/전체 훈련일). */
-export function thisWeekSummary(grid: AttendanceGrid): { completed: number; total: number; percent: number } {
-  const total = grid.weekdays.length;
-  const lastWeek = grid.weeks.at(-1);
-  if (!lastWeek) return { completed: 0, total, percent: 0 };
-  const completed = lastWeek.cells.filter((c) => c === "complete").length;
+/** 이번 달 요약 — "이번 달 n/m 완료 · 수행률 p%"(m = 이번 달 훈련일 수, off 칸 제외, 패딩 칸 제외). */
+export function monthSummary(grid: MonthGrid): { completed: number; total: number; percent: number } {
+  let completed = 0;
+  let total = 0;
+  for (const week of grid.weeks) {
+    for (const cell of week) {
+      if (cell.date === null || cell.status === "off") continue;
+      total += 1;
+      if (cell.status === "complete") completed += 1;
+    }
+  }
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
   return { completed, total, percent };
 }

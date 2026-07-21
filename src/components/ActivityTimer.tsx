@@ -12,6 +12,15 @@ export type ActivityTimerProps = {
    *  ActivityTimer 자체는 sessionId 무관 전체 구간(현재 진행 중 복원 + 오늘 완료 요약)을 다루므로,
    *  세션 총 시간처럼 sessionId 한정 집계가 필요한 상위 화면에 이 콜백으로 필터링된 값을 올려보낸다. */
   onSessionSegmentsChange?: (segments: ActivitySegment[]) => void;
+  /** UI14 item7 — 이 세션(sessionId)에 연결된 "모든" 구간(진행 중 포함, 종료 여부 무관)이 바뀔 때마다
+   *  호출. onSessionSegmentsChange(종료된 것만, 합산용)와 달리, 상위 화면이 "첫 구간 시작~마지막 구간
+   *  종료(또는 진행 중이면 지금)"의 span을 계산하려면 진행 중인 구간의 startedAt도 필요하다. */
+  onSessionSpanSegmentsChange?: (segments: ActivitySegment[]) => void;
+  /** UI14 item7 — 세션의 첫 세트가 완료될 때마다(useTodaySession) 증가하는 트리거. 이 값이 바뀌고
+   *  현재 진행 중인 활동 구간이 없으면(사용자가 이미 수동으로 킨 kind가 있으면 존중해 건드리지 않음)
+   *  "운동"(workout) kind로 자동 시작한다 — kind 칩은 계속 노출돼 수동 전환 가능(자동시작은 편의
+   *  초기값일 뿐). */
+  autoStartTrigger?: number;
 };
 
 const SELECTABLE_KINDS: ActivityKind[] = ["stretch", "workout", "postStretch", "running", "abs", "other"];
@@ -25,7 +34,12 @@ const TICK_MS = 1000;
  * (startedAt 고정 → 매 tick마다 Date.now()-startedAt 재계산, drift 없음) + visibilitychange 복귀 시
  * 즉시 재계산.
  */
-export function ActivityTimer({ sessionId, onSessionSegmentsChange }: ActivityTimerProps) {
+export function ActivityTimer({
+  sessionId,
+  onSessionSegmentsChange,
+  onSessionSpanSegmentsChange,
+  autoStartTrigger,
+}: ActivityTimerProps) {
   const startActivity = useProgramStore((s) => s.startActivity);
   const endActivity = useProgramStore((s) => s.endActivity);
 
@@ -48,11 +62,21 @@ export function ActivityTimer({ sessionId, onSessionSegmentsChange }: ActivityTi
     );
     setTodaySegments(completedToday);
     onSessionSegmentsChange?.(sessionId ? completedToday.filter((s) => s.sessionId === sessionId) : []);
-  }, [sessionId, onSessionSegmentsChange]);
+    // UI14 item7 — 진행 중 포함, 이 세션에 연결된 전체 구간(span 계산용).
+    onSessionSpanSegmentsChange?.(sessionId ? all.filter((s) => s.sessionId === sessionId) : []);
+  }, [sessionId, onSessionSegmentsChange, onSessionSpanSegmentsChange]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // UI14 item7 — 첫 세트 완료 시 자동 시작(편의 초기값). 이미 뭔가 진행 중이면(사용자가 먼저 킨
+  // kind가 있으면) 건드리지 않는다 — "자동시작은 편의 초기값일 뿐, 수동 전환 여전히 가능".
+  useEffect(() => {
+    if (!autoStartTrigger) return;
+    if (runningRef.current) return;
+    handleStart("workout");
+  }, [autoStartTrigger]);
 
   const recompute = useCallback(() => {
     const r = runningRef.current;

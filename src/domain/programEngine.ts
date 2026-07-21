@@ -68,11 +68,17 @@ function buildSet(
   return { weight: accessoryState.weight, reps, setType: "work", ...amrap };
 }
 
-/** 첫 세트 load.kind === "pctOfTM"인 슬롯만 워밍업 생성. tracked·missingTM 슬롯은 []. */
+/**
+ * 워밍업 생성 — 첫 세트 참조 무게(sets[0].weight)만 있으면 load.kind(pctOfTM/tracked) 무관하게
+ * 생성한다(버그 fix, UI14 item1). 이전엔 load.kind !== "pctOfTM"이면 무조건 []을 반환해, defaultLoad로
+ * 유도된 tracked 슬롯(예: CGBP 57.5kg)이 같은 무게의 pctOfTM 슬롯과 달리 워밍업을 못 받는 비대칭
+ * 버그가 있었다. missingTM/needsInit(firstWeight === null)만 여전히 워밍업 생략 대상 — floor(빈바/힌지
+ * 하한) > cap(firstWeight - step)이면 generateWarmup 자체가 []을 반환하므로, 가벼운 tracked 슬롯
+ * (예: 풀업 추가중량 5kg)은 이 가드로 자연히 워밍업이 생략된다. */
 function computeWarmups(slot: SlotSpec, sets: PlannedSet[], missingTM: boolean, cfg: PlateConfig): PlannedSet[] {
   const firstSpec = slot.sets[0];
   const firstSet = sets[0];
-  if (!firstSpec || !firstSet || firstSpec.load.kind !== "pctOfTM" || missingTM) return [];
+  if (!firstSpec || !firstSet || missingTM) return [];
   const firstWeight = firstSet.weight;
   if (firstWeight === null) return [];
   const hinge = exerciseInfo(slot.exerciseId)?.hinge === true;

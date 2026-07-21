@@ -114,7 +114,8 @@ describe("kk-6day — 첫 세션이 전부 처방된다(사용자 요구 회귀 
     const byId = Object.fromEntries(plan.slots.map((s) => [s.slotId, s]));
     expect(byId["d1-pullup"]!.sets[0]!.weight).toBe(5); // 절대값
     expect(byId["d1-dbrow"]!.sets[0]!.weight).toBe(35); // 140 × 0.25
-    expect(byId["d1-lateral"]!.sets[0]!.weight).toBe(7.5); // 67.5 × 0.12 = 8.1 → 2.5 단위
+    // UI14 item3 — 월↔화 악세사리 스왑: 월 3번째 슬롯은 이제 machineCurl(d1-curl, weightStep 5).
+    expect(byId["d1-curl"]!.sets[0]!.weight).toBe(20); // 67.5 × 0.3 = 20.25 → 5 단위
   });
 });
 

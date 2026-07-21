@@ -105,6 +105,23 @@ button {
   white-space: nowrap;
 }
 
+/* UI14 item7 — 스티키 헤더 우측 그룹(span 타이머 + 진행카운트/완료pill을 함께 묶어 우측 정렬). */
+.today-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 우상단 통합 표시 — 첫 활동구간 시작~마지막 구간 종료(또는 진행중이면 지금)까지의 wall-clock span.
+   기존 today-total-time(구간 durationSec 합)과 구분되는 색(teal)으로 표시. */
+.today-span-time {
+  color: var(--teal);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* ---------- 활동 구간 타이머(UI11) — 스티키 헤더 바로 아래 ---------- */
 
 .today-activity-row {
@@ -453,6 +470,13 @@ button {
   border: none;
   background: transparent;
   opacity: 0;
+}
+
+/* UI14 item2 — 워밍업 행도 일반 SetRow로 렌더되므로(탭해서 완료/정정 가능), 배지 색만 워밍업
+   전용(badge-warmup) 톤으로 눈에 띄게 구분한다 — 숫자 배지 자체는 SetRow 공용 로직 그대로. */
+.is-warmup-row .badge-normal {
+  background: var(--badge-warmup);
+  color: #fff;
 }
 
 .free-input {
@@ -821,29 +845,28 @@ button {
 
 /* ---------- UI5 T2: 홈 대시보드 — 출석 스트립 / 부상 칩 / 세션 코멘트 ---------- */
 
-.attendance-strip {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+/* UI14 item5 — 실제 월간 달력 그리드(요일 7열 고정 × 주차 행). 셀은 색상만(숫자 없음). */
+.attendance-calendar {
   margin-top: 8px;
 }
 
-.attendance-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.attendance-calendar-header,
+.attendance-calendar-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
 }
 
-.attendance-row-label {
-  width: 16px;
-  font-size: 10px;
+.attendance-calendar-weekday {
+  font-size: 9px;
   color: var(--muted);
-  flex-shrink: 0;
+  text-align: center;
 }
 
 .attendance-cell {
-  width: 12px;
-  height: 12px;
+  width: 100%;
+  aspect-ratio: 1;
   border-radius: 3px;
   background: var(--surface2);
 }
@@ -854,6 +877,17 @@ button {
 
 .attendance-cell.is-partial {
   background: rgba(252, 193, 0, 0.3);
+}
+
+/* 그 요일이 활성 프로그램의 훈련일이 아님(예: 목요일 휴식일) — 은은하게 구분만, 상태 색과 혼동되지 않게. */
+.attendance-cell.is-off {
+  background: transparent;
+  border: 1px dashed var(--border);
+}
+
+/* 이번 달 밖(주 앞/뒤 패딩) — 빈 칸, 배경 없음. */
+.attendance-cell.is-empty {
+  background: transparent;
 }
 
 .injury-chip {
@@ -1006,15 +1040,6 @@ button { white-space: nowrap; }
   font-size: 13px;
   font-weight: 600;
   margin: 2px 0 0;
-}
-
-.attendance-strip-compact {
-  gap: 3px;
-}
-
-.attendance-strip-compact .attendance-cell {
-  width: 10px;
-  height: 10px;
 }
 
 .dashboard-quick-input {

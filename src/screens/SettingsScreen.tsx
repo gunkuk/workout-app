@@ -1,7 +1,5 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { exportSnapshot, importSnapshot, shareOrDownloadSnapshot, parseSnapshotJSON } from "../lib/backup";
-import { useProgramStore } from "../store/programStore";
-import { nowISO } from "../lib/time";
 
 /**
  * Task 7(C2) — 최소 설정 화면: 백업 내보내기/가져오기 버튼만(스펙 §2-8 범위, 그 외 설정 항목 없음).
@@ -9,9 +7,9 @@ import { nowISO } from "../lib/time";
  * 이 화면은 그 함수들을 버튼/파일input에 배선하는 얇은 UI 레이어다(테스트도 backup.ts 쪽에서
  * DB·navigator mock으로 커버 — 이 화면 자체의 렌더링 테스트는 계획 범위 밖).
  *
- * Stage1-C3 T4 — TM 수동 편집 섹션 추가(스펙 §2-7). programStore.tm을 그대로 렌더하고, 저장 시
- * DecisionEvent{kind:"manual"}을 만들어 기존 `acceptProposal` mutation을 재사용한다 — 이름은
- * "제안 수락"이지만 본질은 appendDecision+refresh라 임의의 결정(수동 편집 포함)에 그대로 맞는다.
+ * UI14 item9 — TM 수동 편집 섹션(Stage1-C3 T4에서 여기 있었음)을 ProgramScreen.tsx로 이관했다
+ * (사용자 요청: TM/1RM 편집은 프로그램 페이지가 더 자연스러운 위치). 이 화면은 이제 백업 + 앱
+ * 설명만 담당.
  */
 export function SettingsScreen() {
   const [error, setError] = useState<string | null>(null);
@@ -19,34 +17,6 @@ export function SettingsScreen() {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const tm = useProgramStore((s) => s.tm);
-  const acceptProposal = useProgramStore((s) => s.acceptProposal);
-  const [tmEdits, setTmEdits] = useState<Record<string, string>>({});
-  const [tmError, setTmError] = useState<string | null>(null);
-
-  async function handleTmSave(exerciseId: string) {
-    const raw = tmEdits[exerciseId];
-    const value = raw === undefined ? NaN : Number(raw);
-    if (raw === undefined || raw.trim() === "" || !Number.isFinite(value)) {
-      setTmError("올바른 숫자를 입력해주세요.");
-      return;
-    }
-    setTmError(null);
-    await acceptProposal({
-      id: crypto.randomUUID(),
-      target: { kind: "tm", exerciseId },
-      kind: "manual",
-      value,
-      at: nowISO(),
-      schemaVersion: 1,
-    });
-    setTmEdits((prev) => {
-      const next = { ...prev };
-      delete next[exerciseId];
-      return next;
-    });
-  }
 
   async function handleExport() {
     setError(null);
@@ -114,30 +84,6 @@ export function SettingsScreen() {
           <strong>설치 (홈 화면에 추가)</strong>
         </p>
         <p>Android Chrome: 메뉴(⋮) → "홈 화면에 추가". iPhone Safari: 공유 → "홈 화면에 추가". 설치하면 전체화면 + 오프라인 실행된다.</p>
-      </section>
-      <section className="settings-card">
-        <h3>TM 수동 편집</h3>
-        {tmError && <div role="alert" className="alert">{tmError}</div>}
-        <ul>
-          {Object.entries(tm).map(([exerciseId, value]) => (
-            <li key={exerciseId}>
-              {exerciseId}: {value}
-              <input
-                type="number"
-                data-testid={`tm-input-${exerciseId}`}
-                className="free-input"
-                value={tmEdits[exerciseId] ?? ""}
-                placeholder={String(value)}
-                onChange={(e) =>
-                  setTmEdits((prev) => ({ ...prev, [exerciseId]: e.target.value }))
-                }
-              />
-              <button type="button" className="btn btn-secondary" onClick={() => handleTmSave(exerciseId)}>
-                저장
-              </button>
-            </li>
-          ))}
-        </ul>
       </section>
       <section className="settings-card">
         <h3>백업</h3>

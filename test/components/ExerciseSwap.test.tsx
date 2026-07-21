@@ -57,6 +57,14 @@ function sectionFor(container: HTMLElement, label: string): HTMLElement | null {
   return heading ? heading.closest("section") : null;
 }
 
+/** section 내 "작업세트" setrow만(워밍업 제외) — UI14 item2부터 워밍업도 setrow- testid를 쓰므로
+ *  `.is-warmup-row` 래퍼로 걸러낸다(TodayScreen.test.tsx의 rowsForLabel과 동일 원칙). */
+function workRowsIn(section: HTMLElement): HTMLElement[] {
+  return within(section)
+    .getAllByTestId(/^setrow-/)
+    .filter((el) => !el.closest(".is-warmup-row"));
+}
+
 const deadliftSlot: PlannedSlot = {
   slotId: "w1d4-dead-t1",
   exerciseId: "deadlift",
@@ -140,7 +148,7 @@ describe("ExerciseSwap", () => {
       expect(section).toBeTruthy();
       return section!;
     });
-    const rows = within(swappedSection).getAllByTestId(/^setrow-/);
+    const rows = workRowsIn(swappedSection);
     expect(rows).toHaveLength(5);
     expect(within(swappedSection).getByRole("button", { name: "원래대로" })).toBeInTheDocument();
     expect(within(swappedSection).queryByRole("button", { name: "통증일(경량)" })).not.toBeInTheDocument();
@@ -173,7 +181,7 @@ describe("ExerciseSwap", () => {
       expect(section).toBeTruthy();
       return section!;
     });
-    const rows = within(swappedSection).getAllByTestId(/^setrow-/);
+    const rows = workRowsIn(swappedSection);
     const firstRow = rows[0]!;
     fireEvent.click(firstRow); // 경량 세트 1개 완료
     await waitFor(() => expect(firstRow.querySelector('[aria-label="완료됨"]')).toBeTruthy());
@@ -195,7 +203,7 @@ describe("ExerciseSwap", () => {
       expect(section).toBeTruthy();
       return section!;
     });
-    const originalRows = within(originalSection).getAllByTestId(/^setrow-/);
+    const originalRows = workRowsIn(originalSection);
     expect(originalRows.every((r) => !r.querySelector('[aria-label="완료됨"]'))).toBe(true);
   });
 

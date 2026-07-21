@@ -5,6 +5,7 @@ import { db } from "../../src/storage/db";
 import { appendSet, appendSession } from "../../src/storage/eventStore";
 import { useProgramStore } from "../../src/store/programStore";
 import { TodayScreen, sessionIdFor } from "../../src/screens/TodayScreen";
+import { STEP_WEIGHT } from "../../src/screens/today/useTodaySession";
 import App from "../../src/App";
 import type { DecisionEvent, SetRecord, CyclePos } from "../../src/domain/types.ts";
 import { resetDb } from "../helpers/db";
@@ -59,13 +60,18 @@ async function advancePast(dayOrdinal: number): Promise<void> {
   });
 }
 
-/** 특정 슬롯 label의 <section> 내부 setrow 요소들 (DOM 등장 순서 = slot.sets 배열 순서) */
+/** 특정 슬롯 label의 <section> 내부 "작업세트" setrow 요소들만(slot.sets 배열 순서) — 워밍업도
+ *  UI14 item2부터 같은 setrow- testid로 렌더되므로(탭 가능해짐), `.is-warmup-row` 래퍼 안의
+ *  setrow는 제외한다(이 헬퍼를 쓰는 기존 테스트 다수가 "작업세트 몇 번째"라는 인덱스 가정을 그대로
+ *  쓰기 때문 — 워밍업 자체를 다루려면 `warmup-${slotId}-${i}` testid를 직접 쓴다). */
 function rowsForLabel(container: HTMLElement, label: string): HTMLElement[] {
   const heading = Array.from(container.querySelectorAll("h3")).find((h) => h.textContent === label);
   if (!heading) return [];
   const section = heading.closest("section");
   if (!section) return [];
-  return Array.from(section.querySelectorAll('[data-testid^="setrow-"]'));
+  return Array.from(section.querySelectorAll('[data-testid^="setrow-"]')).filter(
+    (el) => !el.closest(".is-warmup-row"),
+  ) as HTMLElement[];
 }
 
 afterEach(() => {
@@ -94,7 +100,8 @@ describe("TodayScreen", () => {
     const totalWarmup = plan.slots.reduce((n, s) => n + s.warmups.length, 0);
     expect(totalWork).toBeGreaterThan(0);
     expect(totalWarmup).toBeGreaterThan(0);
-    expect(container.querySelectorAll('[data-testid^="setrow-"]').length).toBe(totalWork);
+    // UI14 item2 — 워밍업도 이제 SetRow(같은 setrow- testid)로 렌더되므로 총 개수는 작업세트+워밍업.
+    expect(container.querySelectorAll('[data-testid^="setrow-"]').length).toBe(totalWork + totalWarmup);
     expect(container.querySelectorAll('[data-testid^="warmup-"]').length).toBe(totalWarmup);
 
     await waitForWarmupSettled();
@@ -478,5 +485,107 @@ describe("TodayScreen", () => {
       expect(timing!.durationSec).toBeGreaterThanOrEqual(0);
     });
     expect(await screen.findByTestId(`set-duration-${secondSetId}`)).toBeInTheDocument();
+  });
+
+  // UI14 item2 — 워밍업 세트도 SetRow와 같은 완료 메커니즘으로 렌더된다: 마운트 시 자동 기록은
+  // 그대로 유지되지만(읽기전용이 아니게 됐을 뿐), 사용자가 탭해서 정정할 수 있어야 한다.
+
+  it("⑰ 워밍업 세트 — 마운트 시 자동으로 완료 표시(체크 아이콘) + 재탭 시 정정모드로 진입해 값 수정 가능", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+    const { container } = render(<TodayScreen />);
+    await waitForWarmupSettled();
+
+    const t1Section = Array.from(container.querySelectorAll("h3"))
+      .find((h) => h.textContent === "T1")!
+      .closest("section")!;
+    const warmupWrapper = t1Section.querySelector('[data-testid^="warmup-w1d1-bench-t1-"]') as HTMLElement;
+    expect(warmupWrapper).toBeTruthy();
+    const warmupRow = warmupWrapper.querySelector('[data-testid^="setrow-"]') as HTMLElement;
+    expect(warmupRow).toBeTruthy();
+
+    // 자동 기록 — 탭 없이도 이미 완료 표시(체크 아이콘)여야 함(recorded state 반영은 DB write 이후
+    // 한 tick 늦을 수 있어 waitFor로 기다린다).
+    await waitFor(() => expect(warmupRow.querySelector('[aria-label="완료됨"]')).toBeTruthy());
+    const warmupSetId = warmupRow.getAttribute("data-testid")!.replace("setrow-", "");
+    const recBefore = await db.setRecords.get(warmupSetId);
+    expect(recBefore).toBeDefined();
+    expect(recBefore!.setType).toBe("warmup");
+
+    // 재탭 → 정정모드 진입 → 무게 증가 → 저장 → appendCorrection.
+    fireEvent.click(warmupRow);
+    const weightUp = within(warmupRow).getByRole("button", { name: "무게 증가" });
+    fireEvent.click(weightUp);
+    fireEvent.click(within(warmupRow).getByRole("button", { name: "저장" }));
+
+    await waitFor(async () => {
+      const corrections = await db.corrections.toArray();
+      const correction = corrections.find((c) => c.supersedes === warmupSetId);
+      expect(correction).toBeDefined();
+      expect(correction!.patch?.actualWeight).toBe(recBefore!.actualWeight + STEP_WEIGHT);
+    });
+    expect(warmupRow.querySelector('[aria-label="완료됨"]')).toBeTruthy();
+  });
+
+  // UI14 item7 — 첫 세트 완료 시 활동 타이머 자동시작(편의 초기값, kind="workout") + 우상단
+  // 통합 표시(today-span-time, 첫 구간 시작~마지막 구간 종료/진행중 span — 기존 today-total-time
+  // 합산과는 별개 지표).
+
+  it("⑱ 첫 작업세트 완료 → 활동 타이머가 자동으로 '운동' kind로 시작(칩 탭 없이) + 우상단 span 표시 등장", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+    const { container } = render(<TodayScreen />);
+    await waitForWarmupSettled();
+
+    expect(screen.queryByTestId("today-span-time")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("activity-timer-elapsed")).not.toBeInTheDocument();
+
+    const rows = rowsForLabel(container, "T1");
+    fireEvent.click(rows[0]!); // 첫 작업세트 완료(자동시작 트리거)
+    await waitFor(() => expect(rows[0]!.querySelector('[aria-label="완료됨"]')).toBeTruthy());
+
+    // 칩을 탭하지 않았는데도 활동 타이머가 "운동" kind로 진행 중이어야 함(자동시작).
+    await waitFor(async () => {
+      const segs = await db.activitySegments.toArray();
+      expect(segs).toHaveLength(1);
+      expect(segs[0]!.kind).toBe("workout");
+      expect(segs[0]!.endedAt).toBeUndefined();
+    });
+    expect(await screen.findByTestId("activity-timer-elapsed")).toBeInTheDocument();
+    // 우상단 span 표시도 데이터가 생겼으니 등장.
+    expect(await screen.findByTestId("today-span-time")).toBeInTheDocument();
+
+    // 수동 전환도 여전히 가능(자동시작은 편의 초기값일 뿐) — kind 칩은 진행 중엔 안 보이지만
+    // "종료" 후 다시 칩이 노출돼 다른 kind로 전환 가능한지 확인.
+    const timer = screen.getByTestId("activity-timer");
+    fireEvent.click(within(timer).getByRole("button", { name: "종료" }));
+    await waitFor(async () => {
+      const segs = await db.activitySegments.toArray();
+      expect(segs[0]!.endedAt).toBeDefined();
+    });
+    expect(await within(timer).findByRole("button", { name: "스트레칭" })).toBeInTheDocument();
+    // 마지막 구간이 끝났어도 span 표시는 "처음~끝"의 최종값으로 계속 남아있어야 함.
+    expect(screen.getByTestId("today-span-time")).toBeInTheDocument();
+  });
+
+  it("⑲ 이미 수동으로 활동을 시작해둔 상태면 첫 작업세트 완료가 자동시작을 덮어쓰지 않음", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+    const { container } = render(<TodayScreen />);
+    await waitForWarmupSettled();
+
+    const timer = screen.getByTestId("activity-timer");
+    fireEvent.click(within(timer).getByRole("button", { name: "스트레칭" })); // 수동으로 먼저 시작
+    await screen.findByTestId("activity-timer-elapsed");
+
+    const rows = rowsForLabel(container, "T1");
+    fireEvent.click(rows[0]!); // 첫 작업세트 완료
+    await waitFor(() => expect(rows[0]!.querySelector('[aria-label="완료됨"]')).toBeTruthy());
+
+    // 자동시작이 기존 진행 중이던 "스트레칭"을 덮어쓰지 않아야 함 — 여전히 구간 1개, kind는 stretch.
+    await new Promise((r) => setTimeout(r, 0));
+    const segs = await db.activitySegments.toArray();
+    expect(segs).toHaveLength(1);
+    expect(segs[0]!.kind).toBe("stretch");
   });
 });

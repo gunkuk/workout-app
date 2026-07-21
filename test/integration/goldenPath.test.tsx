@@ -78,7 +78,8 @@ describe("골든패스(통합)", () => {
       expect(totalWork).toBeGreaterThan(0);
       expect(totalWarmup).toBeGreaterThan(0);
       await waitForWarmupSettled();
-      expect(container.querySelectorAll('[data-testid^="setrow-"]').length).toBe(totalWork);
+      // UI14 item2 — 워밍업도 이제 SetRow(같은 setrow- testid)로 렌더되므로 총 개수는 작업세트+워밍업.
+      expect(container.querySelectorAll('[data-testid^="setrow-"]').length).toBe(totalWork + totalWarmup);
       expect(container.querySelectorAll('[data-testid^="warmup-"]').length).toBe(totalWarmup);
 
       // 5. 전 작업세트 체크오프(일반 세트는 탭, needsInit 악세사리는 자유입력 후 제출).

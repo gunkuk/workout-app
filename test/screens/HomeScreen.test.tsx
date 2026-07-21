@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup, within } from "@testing-library/react";
 import { db } from "../../src/storage/db";
 import { appendSession, appendSet, appendCorrection } from "../../src/storage/eventStore";
 import { useProgramStore } from "../../src/store/programStore";
@@ -85,20 +85,21 @@ describe("HomeScreen", () => {
     expect(onLogFreeWorkout).toHaveBeenCalledTimes(1);
   });
 
-  it("④ 완료된 세션 없을 때 주간 진행률 0/M 표시", async () => {
+  // UI14 item4 — "이번 주"가 아니라 프로그램 전체 사이클(모든 주 × 주당 일수) 기준 진행도로 변경.
+  // nsuns-5day 시드는 1주 반복(week 1개, 5일)이라 "사이클 전체"와 "그 주"가 수치상 같다.
+  it("④ 완료된 세션 없을 때 사이클 진행률 0/M 표시", async () => {
     await onboard();
-    const todayPos = useProgramStore.getState().todayPos!;
-    const totalDays = seed.weeks[todayPos.week]!.days.length;
+    const totalCycle = seed.weeks.reduce((n, w) => n + w.days.length, 0);
 
     render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
 
-    await waitFor(() => expect(screen.getByText(`이번 주 0/${totalDays} 완료`)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(new RegExp(`이번 사이클 0/${totalCycle} 완료`))).toBeInTheDocument());
   });
 
-  it("⑤ 이번 주 세션 1개 완료 후 진행률 1/M로 갱신", async () => {
+  it("⑤ 이번 주 세션 1개 완료 후 사이클 진행률 1/M로 갱신", async () => {
     await onboard();
     const todayPos = useProgramStore.getState().todayPos!;
-    const totalDays = seed.weeks[todayPos.week]!.days.length;
+    const totalCycle = seed.weeks.reduce((n, w) => n + w.days.length, 0);
 
     const completedSession: SessionCompleted = {
       id: "sc-home-test",
@@ -114,7 +115,7 @@ describe("HomeScreen", () => {
 
     render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
 
-    await waitFor(() => expect(screen.getByText(`이번 주 1/${totalDays} 완료`)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(new RegExp(`이번 사이클 1/${totalCycle} 완료`))).toBeInTheDocument());
   });
 
   // UI5 T2 — 체성분/부상·수행능력/출석 스트립 카드 3종 추가 검증.
@@ -164,32 +165,31 @@ describe("HomeScreen", () => {
   });
 
 
-/** 날짜 독립 헬퍼(2026-07-20 수정): 오늘이 무슨 요일이든 "이번 주"(월요일 시작) 기준
- *  오프셋 날짜의 ISO를 만든다. 하드코딩 날짜(2026-07-09 등)를 쓰면 실행 요일에 따라
- *  그 날짜가 지난 주로 밀려 출석 스트립 열 인덱스가 어긋난다. */
-function thisWeekISO(offsetFromMonday: number): string {
+/** 날짜 독립 헬퍼(2026-07-20 수정, UI14 item5 date-string으로 업데이트): 오늘이 무슨 요일이든
+ *  "이번 주"(월요일 시작) 기준 오프셋 날짜를 로컬 yyyy-mm-dd로 만든다 — 실행 요일에 따라 그 날짜가
+ *  지난 주로 밀려도(달력 그리드 자체가 이번 달 전체이므로) 영향 없다. attendance-cell 테스트id는
+ *  이제 이 날짜 문자열 그대로 쓴다(HomeScreen.tsx `attendance-cell-${cell.date}`).
+ */
+function thisWeekDateStr(offsetFromMonday: number): string {
   const now = new Date();
   const dow = now.getDay(); // 0=일
   const mondayDelta = dow === 0 ? -6 : 1 - dow;
-  return new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() + mondayDelta + offsetFromMonday,
-    12,
-    0,
-    0,
-  ).toISOString();
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayDelta + offsetFromMonday);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
-  it("⑨ 출석 스트립 — complete/partial/none 3종 셀 상태 렌더(이번 주 목/금/토)", async () => {
+  it("⑨ 출석 월간 달력 — complete/partial/none 3종 셀 상태 렌더(이번 주 목/금/토)", async () => {
     await onboard();
     const todayPos = useProgramStore.getState().todayPos!;
     // 이번 주 목: 완료 세션 → complete. 이번 주 금: 세트기록만(완료 세션 없음) → partial.
-    // 이번 주 토: 아무 기록 없음 → none. (실행 요일 무관하도록 thisWeekISO로 계산)
+    // 이번 주 토: 아무 기록 없음, 그러나 훈련일(nsuns-5day는 화~토)이므로 → none(off 아님).
     await appendSession({
       id: "att-complete",
       sessionId: "att-complete-session",
-      at: thisWeekISO(3),
+      at: `${thisWeekDateStr(3)}T10:00:00`,
       cyclePos: todayPos,
       status: "completed",
       programId: seed.id,
@@ -204,37 +204,43 @@ function thisWeekISO(offsetFromMonday: number): string {
       targetReps: 5,
       actualWeight: 100,
       actualReps: 5,
-      completedAt: thisWeekISO(4),
+      completedAt: `${thisWeekDateStr(4)}T10:00:00`,
       schemaVersion: 1,
     });
 
     render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
 
-    // UI7 — 출석 카드가 8주 전체 그리드에서 4주 미니 스트립(Boostcamp풍 2컬럼 좌상 카드)으로 축소돼
-    // "이번 주" 열 인덱스가 7(8주 그리드의 마지막)에서 3(4주 그리드의 마지막)으로 이동.
-    const completeCell = await screen.findByTestId("attendance-cell-2-3"); // 목, 이번 주
-    const partialCell = screen.getByTestId("attendance-cell-3-3"); // 금, 이번 주
-    const noneCell = screen.getByTestId("attendance-cell-4-3"); // 토, 이번 주
+    const completeCell = await screen.findByTestId(`attendance-cell-${thisWeekDateStr(3)}`); // 목, 이번 주
+    const partialCell = screen.getByTestId(`attendance-cell-${thisWeekDateStr(4)}`); // 금, 이번 주
+    const noneCell = screen.getByTestId(`attendance-cell-${thisWeekDateStr(5)}`); // 토, 이번 주
 
     expect(completeCell).toHaveClass("is-complete");
     expect(partialCell).toHaveClass("is-partial");
     expect(partialCell).not.toHaveClass("is-complete");
     expect(noneCell).not.toHaveClass("is-complete");
     expect(noneCell).not.toHaveClass("is-partial");
+    expect(noneCell).not.toHaveClass("is-off");
   });
 
   // UI7 — 수행능력↔프로그램 자동 커플링(TM = 0.9 × 1RM 역산) 검증.
 
-  it("⑩ 수행능력 카드 — TM 105(벤치) → 환산 1RM ≈116.7 표시(측정값 없음)", async () => {
+  // UI14 item6 — 수행능력 카드에서 TM 줄(흰색 볼드) 제거, 환산 1RM(≈)·측정 e1RM(teal)만 표시.
+  // liftSummary()가 반환하는 tm 필드 자체는 그대로 유지(프로그램 탭 TM 편집, item9가 소비) — 렌더만 안 함.
+
+  // "벤치프레스"라는 텍스트가 홈의 "오늘" 카드(슬롯 목록)에도 등장하므로, 전역 screen 쿼리 대신
+  // 수행능력 카드의 그 행(data-testid="lift-summary-bench")으로 스코프를 좁혀 모호성을 없앤다.
+  it("⑩ 수행능력 카드 — TM 105(벤치) → 환산 1RM ≈116.7만 표시(TM 숫자 자체는 렌더 안 함, 측정값 없음)", async () => {
     await onboard();
     render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
 
-    expect(await screen.findByText(/벤치프레스\s*105/)).toBeInTheDocument();
-    expect(screen.getByText("≈116.7")).toBeInTheDocument();
-    expect(screen.queryByText(/측정/)).not.toBeInTheDocument();
+    const row = await screen.findByTestId("lift-summary-bench");
+    expect(within(row).getByText("벤치프레스")).toBeInTheDocument();
+    expect(within(row).getByText("≈116.7")).toBeInTheDocument();
+    expect(within(row).queryByText(/벤치프레스\s*105/)).not.toBeInTheDocument();
+    expect(within(row).queryByText(/측정/)).not.toBeInTheDocument();
   });
 
-  it("⑪ 실측 AMRAP topSet 존재 → '측정 {e1RM}' 행이 TM·환산 1RM과 함께 표시", async () => {
+  it("⑪ 실측 AMRAP topSet 존재 → '측정 {e1RM}' 행이 환산 1RM과 함께 표시(TM 숫자는 표시 안 함)", async () => {
     await onboard();
     await appendSet({
       id: "measured-topset",
@@ -251,15 +257,17 @@ function thisWeekISO(offsetFromMonday: number): string {
 
     render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
 
-    expect(await screen.findByText(/벤치프레스\s*105/)).toBeInTheDocument();
-    expect(screen.getByText("≈116.7")).toBeInTheDocument();
-    expect(screen.getByText("측정 110")).toBeInTheDocument(); // epley(100,3) = 110
+    const row = await screen.findByTestId("lift-summary-bench");
+    expect(within(row).getByText("벤치프레스")).toBeInTheDocument();
+    expect(within(row).getByText("≈116.7")).toBeInTheDocument();
+    expect(within(row).queryByText(/벤치프레스\s*105/)).not.toBeInTheDocument();
+    expect(within(row).getByText("측정 110")).toBeInTheDocument(); // epley(100,3) = 110
   });
 
-  it("⑫ 취소(revoked)된 세션(Stage1-UI9, 진행 위치 뒤로 이동)은 이번 주 진행률에서 제외됨", async () => {
+  it("⑫ 취소(revoked)된 세션(Stage1-UI9, 진행 위치 뒤로 이동)은 사이클 진행률에서 제외됨", async () => {
     await onboard();
     const todayPos = useProgramStore.getState().todayPos!;
-    const totalDays = seed.weeks[todayPos.week]!.days.length;
+    const totalCycle = seed.weeks.reduce((n, w) => n + w.days.length, 0);
 
     const completedSession: SessionCompleted = {
       id: "sc-revoked-test",
@@ -282,6 +290,56 @@ function thisWeekISO(offsetFromMonday: number): string {
 
     render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
 
-    await waitFor(() => expect(screen.getByText(`이번 주 0/${totalDays} 완료`)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(new RegExp(`이번 사이클 0/${totalCycle} 완료`))).toBeInTheDocument());
+  });
+
+  // UI14 item4 — 멀티주(mesocycle) 프로그램에서 "이번 사이클" 진행도가 현재 주가 아니라 프로그램
+  // 전체(모든 주 × 주당 일수)를 분모로 쓰는지 검증. kk-4day(실제 7주 구조, 매주 5일 = 사이클 전체
+  // 35일)를 시드해 분모가 개별 주(5일)가 아니라 전체(35일)인지, 다른 주에 세션 1개 완료 시 분자가
+  // 정확히 늘어나는지 확인한다.
+  it("⑬ 멀티주 프로그램(kk-4day, 7주×5일=35일 사이클) — 전체 사이클 기준 진행도 + 현재 주차 표시", async () => {
+    const { readFileSync } = await import("node:fs");
+    const kk4 = JSON.parse(readFileSync("programs/kk-4day.json", "utf8")) as typeof seed;
+    const kk4Decisions: DecisionEvent[] = (["bench", "ohp", "squat", "deadlift"] as const).map((exerciseId) => ({
+      id: `seed-kk4-${exerciseId}`,
+      target: { kind: "tm", exerciseId },
+      kind: "seed",
+      value: TM[exerciseId],
+      at: at(1),
+      schemaVersion: 1,
+    }));
+    await seedOnboarded(kk4, kk4Decisions, at(1));
+    await useProgramStore.getState().load();
+    await waitFor(() => expect(useProgramStore.getState().status).toBe("ready"));
+    const todayPos = useProgramStore.getState().todayPos!;
+    const totalCycle = kk4.weeks.reduce((n: number, w: { days: unknown[] }) => n + w.days.length, 0);
+
+    render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByText(new RegExp(`이번 사이클 0/${totalCycle} 완료`))).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText(new RegExp(`${todayPos.week + 1}/${kk4.weeks.length}주차`)),
+    ).toBeInTheDocument();
+
+    // 다른 주(week 0이 아닌, todayPos와 다른 week)에 완료 세션 1개를 추가해도 "전체 사이클" 분자에 반영돼야 함
+    // (이전 "이번 주"방식이었다면 다른 주 세션은 0/M에서 변화가 없었을 것).
+    const otherWeek = (todayPos.week + 1) % kk4.weeks.length;
+    await appendSession({
+      id: "sc-kk4-otherweek",
+      sessionId: "kk4-otherweek-session",
+      at: at(2),
+      cyclePos: { cycleIndex: todayPos.cycleIndex, week: otherWeek, dayOrdinal: 1 },
+      status: "completed",
+      programId: kk4.id,
+      programVersion: kk4.version,
+      schemaVersion: 1,
+    });
+
+    cleanup();
+    render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+    await waitFor(() =>
+      expect(screen.getByText(new RegExp(`이번 사이클 1/${totalCycle} 완료`))).toBeInTheDocument(),
+    );
   });
 });

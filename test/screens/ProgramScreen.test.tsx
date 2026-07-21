@@ -1,12 +1,21 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import "@testing-library/jest-dom/vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor, within } from "@testing-library/react";
 import { useProgramStore } from "../../src/store/programStore";
+import { loadFoldInput } from "../../src/storage/eventStore";
+import { tmHistory } from "../../src/domain/e1rm";
 import { ProgramScreen } from "../../src/screens/ProgramScreen";
 import type { DecisionEvent, ProgramDefinition } from "../../src/domain/types.ts";
 import { resetDb } from "../helpers/db";
 import { loadSeedProgram, seedOnboarded as seedOnboardedHelper } from "../helpers/seed";
+
+/** input이 속한 <li> 안의 "저장" 버튼만 클릭 — Object.entries(tm) 순서에 의존하지 않음. */
+function saveButtonFor(input: HTMLElement): HTMLElement {
+  const li = input.closest("li");
+  if (!li) throw new Error("fixture 오류: input이 li 안에 없음");
+  return within(li as HTMLElement).getByRole("button", { name: "저장" });
+}
 
 // Task — ProgramScreen: 활성 프로그램 description을 토글로 보여주는 섹션 검증
 // (ProgramLibrary.test.tsx와 동일한 실 nSuns 시드 + 실 store/eventStore fixture 패턴).
@@ -134,5 +143,62 @@ describe("ProgramScreen", () => {
 
     expect(screen.getByRole("table")).toBeInTheDocument();
     expect(screen.queryByText(/주차\)/)).not.toBeInTheDocument();
+  });
+});
+
+// UI14 item9 — TM 수동 편집 섹션을 SettingsScreen에서 이관(원래 Stage1-C3 T4). programStore.tm을
+// 렌더하고, 저장 시 DecisionEvent{kind:"manual"}을 만들어 acceptProposal(=appendDecision+refresh)을
+// 재사용한다. 테스트도 SettingsScreen.test.tsx에서 그대로 옮겨왔다(동일 시맨틱, 화면만 이동).
+describe("ProgramScreen — TM/1RM 편집(item9, 구 SettingsScreen Stage1-C3 T4)", () => {
+  it("① TM 수동 편집 → fold 반영(programStore.tm 변경) + 읽기전용 환산 1RM 동시 표시", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+    render(<ProgramScreen />);
+
+    expect(await screen.findByRole("heading", { name: "TM / 1RM 편집" })).toBeInTheDocument();
+    // 대칭성(item9) — 편집 가능한 TM 입력 옆에 읽기전용 환산 1RM(est1RM = TM/0.9)도 표시.
+    expect(screen.getByText(/환산 1RM ≈116.7/)).toBeInTheDocument(); // 105 / 0.9 = 116.67 → 116.7
+
+    const input = screen.getByTestId("tm-input-bench");
+    fireEvent.change(input, { target: { value: "110" } });
+    fireEvent.click(saveButtonFor(input));
+
+    await waitFor(() => expect(useProgramStore.getState().tm.bench).toBe(110));
+  });
+
+  it("② manual 결정이 이력(tmHistory)에 나타남", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+    render(<ProgramScreen />);
+
+    const input = await screen.findByTestId("tm-input-squat");
+    fireEvent.change(input, { target: { value: "90" } });
+    fireEvent.click(saveButtonFor(input));
+
+    await waitFor(() => expect(useProgramStore.getState().tm.squat).toBe(90));
+
+    const foldInput = await loadFoldInput();
+    const manualDecision = foldInput.decisions.find(
+      (d) => d.kind === "manual" && d.target.kind === "tm" && d.target.exerciseId === "squat",
+    );
+    expect(manualDecision).toBeDefined();
+    expect(manualDecision?.value).toBe(90);
+
+    const history = tmHistory(foldInput, "squat");
+    expect(history.at(-1)?.value).toBe(90);
+  });
+
+  it("올바르지 않은 숫자 입력 → role=alert 에러, 결정 미기록", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+    render(<ProgramScreen />);
+
+    const input = await screen.findByTestId("tm-input-ohp");
+    fireEvent.change(input, { target: { value: "abc" } });
+    fireEvent.click(saveButtonFor(input));
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    const foldInput = await loadFoldInput();
+    expect(foldInput.decisions.some((d) => d.kind === "manual")).toBe(false);
   });
 });

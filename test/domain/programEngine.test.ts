@@ -48,7 +48,15 @@ describe("buildWorkoutPlan", () => {
       { weight: 40, reps: 10, setType: "work" },
       { weight: 40, reps: 10, setType: "work" },
     ]);
-    expect(slotWithState.warmups).toEqual([]);
+    // UI14 item1 버그 fix — tracked 슬롯도 pctOfTM과 동일하게 실제 참조 무게(40kg) 기준 워밍업을
+    // 받는다(이전엔 load.kind !== "pctOfTM"이면 무조건 []을 반환하는 버그가 있었음, 이 assertion이
+    // 그 버그를 그대로 인코딩하고 있었음). 40kg 기준 generateWarmup: 빈바 20×10 → 50%(20, 빈바와
+    // 중복이라 dedupe로 제거) → 70%→27.5×3 → 88%→35×1(cap=40-2.5=37.5 이내).
+    expect(slotWithState.warmups).toEqual([
+      { weight: 20, reps: 10, setType: "warmup" },
+      { weight: 27.5, reps: 3, setType: "warmup" },
+      { weight: 35, reps: 1, setType: "warmup" },
+    ]);
     expect(slotWithState.needsInit).toBe(false);
 
     const withoutState = buildWorkoutPlan(seed, { cycleIndex: 0, week: 0, dayOrdinal: 1 }, tm, {}, DEFAULT_PLATES);
@@ -56,6 +64,8 @@ describe("buildWorkoutPlan", () => {
     expect(slotNoState.needsInit).toBe(true);
     expect(slotNoState.sets.every((s) => s.weight === null)).toBe(true);
     expect(slotNoState.sets.map((s) => s.reps)).toEqual([8, 8, 8]);
+    // UI14 item1 — 참조 무게가 null(needsInit, defaultLoad도 없어 유도 불가)인 슬롯은 여전히 워밍업 없음.
+    expect(slotNoState.warmups).toEqual([]);
   });
 
   it("⑤ TM 없는 ref(frontSquat) → missingTM=true, 전 세트 weight null, 워밍업 []", () => {
