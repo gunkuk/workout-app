@@ -85,7 +85,8 @@ describe("Task 8 — nSuns 통합 오라클 (엔진×fold×분석 접합)", () =
     expect(plan).not.toBeNull();
     const deadSlot = plan!.slots.find((s) => s.slotId === "w1d4-dead-t1")!;
     expect(deadSlot.sets).toHaveLength(9);
-    expect(deadSlot.warmups).toHaveLength(3);
+    // UI15 item1 — 3단계 램프(힌지, 88%컷 없음)의 1단계가 2세트 반복되어 4줄.
+    expect(deadSlot.warmups).toHaveLength(4);
 
     const topSetIdx = deadSlot.sets.findIndex((s) => s.amrapRole === "topSet");
     expect(topSetIdx).toBe(2); // 시드 §w1d4-dead-t1: 3번째 세트가 topSet

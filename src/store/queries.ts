@@ -7,10 +7,12 @@ import {
   getSessionNote,
   listActivitySegments,
   listSetTimings,
+  getExerciseCommentForSlot,
+  getDailyCheckin,
 } from "../storage/eventStore";
 import type { FoldInput, ProgramDefinition } from "../domain/types.ts";
 export type { ExternalSessionRecord, FreeExercise, CardioEntry } from "../storage/db";
-export type { BodyMetric, InjuryLog, SessionNote, ActivityKind, ActivitySegment, SetTiming } from "../storage/trackingTypes";
+export type { BodyMetric, InjuryLog, SessionNote, ActivityKind, ActivitySegment, SetTiming, ExerciseComment, DailyCheckin } from "../storage/trackingTypes";
 
 /**
  * 이벤트 로그 읽기 포털 — loadFoldInput 1:1 위임(Stage1-R T3). 화면들이 storage/eventStore를
@@ -55,4 +57,15 @@ export function loadActivitySegments(sessionId?: string) {
 /** 세트 소요시간 조회(UI11) — listSetTimings 위임. */
 export function loadSetTimings(sessionId?: string) {
   return listSetTimings(sessionId);
+}
+
+/** 운동별 메모 조회(UI15 item3) — getExerciseCommentForSlot 위임(같은 슬롯 우선, 없으면 exerciseId
+ *  폴백). TodayScreen이 각 exercise-card 마운트 시 이걸로 이전 메모를 불러와 회색으로 미리 채운다. */
+export function loadExerciseComment(exerciseId: string, slotId: string) {
+  return getExerciseCommentForSlot(exerciseId, slotId);
+}
+
+/** 특정 날짜의 컨디션/수면/직전식사 체크인 조회(UI15 item4) — getDailyCheckin 위임. */
+export function loadDailyCheckin(date: string) {
+  return getDailyCheckin(date);
 }

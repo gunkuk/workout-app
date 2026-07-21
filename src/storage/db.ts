@@ -15,6 +15,7 @@ import type {
   ExerciseComment,
   ActivitySegment,
   SetTiming,
+  DailyCheckin,
 } from "./trackingTypes";
 
 /**
@@ -51,6 +52,7 @@ export class WorkoutDB extends Dexie {
   exerciseComments!: Table<ExerciseComment, string>;
   activitySegments!: Table<ActivitySegment, string>;
   setTimings!: Table<SetTiming, string>;
+  dailyCheckins!: Table<DailyCheckin, string>;
 
   constructor(name = "workout-db") {
     super(name);
@@ -83,6 +85,11 @@ export class WorkoutDB extends Dexie {
     this.version(4).stores({
       activitySegments: "id",
       setTimings: "id",
+    });
+    // Dexie v5(UI15 item4) — 요일별 컨디션/수면/직전식사 체크인 테이블 추가. v2~v4와 동일 패턴(신규
+    // 테이블만 명시, 기존 14개 테이블 자동 승계·무손실). fold 입력 밖(동결 무관).
+    this.version(5).stores({
+      dailyCheckins: "id",
     });
   }
 }

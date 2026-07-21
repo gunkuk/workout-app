@@ -33,10 +33,14 @@ export type SessionNote = {
   schemaVersion: 1;
 };
 
-/** 운동별 메모/자가 평가 — exerciseId당 여러 건 누적되는 히스토리형 기록. */
+/** 운동별 메모/자가 평가 — exerciseId당 여러 건 누적되는 히스토리형 기록.
+ *  slotId(UI15 item3, additive) — 요일별로 따로 관리하기 위한 슬롯 구분. 저장 시 현재 슬롯의
+ *  slotId를 같이 기록하고, 조회는 같은 slotId 최신 메모 우선 → 없으면 같은 exerciseId(다른 요일
+ *  포함) 최신 메모로 폴백한다(getExerciseCommentForSlot, eventStore.ts). */
 export type ExerciseComment = {
   id: string;
   exerciseId: string;
+  slotId?: string;
   note: string;
   at: string; // ISO 8601
   schemaVersion: 1;
@@ -76,5 +80,19 @@ export type SetTiming = {
   durationSec: number;
   startedAt: string; // ISO 8601
   endedAt: string; // ISO 8601
+  schemaVersion: 1;
+};
+
+/**
+ * 요일별 컨디션/수면/직전식사 체크인(UI15 item4) — 하루 1건, 같은 date로 upsert. 셋 다 optional —
+ * 한 항목만 탭해도 그 필드만 갱신되고 나머지는 보존된다(programStore.upsertDailyCheckin).
+ */
+export type DailyCheckin = {
+  id: string;
+  date: string; // YYYY-MM-DD, 하루 1건(같은 date로 upsert)
+  condition?: 1 | 2 | 3 | 4 | 5;
+  sleep?: 1 | 2 | 3 | 4 | 5;
+  lastMeal?: 1 | 2 | 3 | 4 | 5;
+  at: string; // ISO 8601
   schemaVersion: 1;
 };

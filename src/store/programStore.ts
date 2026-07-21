@@ -20,9 +20,19 @@ import {
   startActivitySegment as startActivitySegmentRow,
   endActivitySegment as endActivitySegmentRow,
   upsertSetTiming as upsertSetTimingRow,
+  upsertExerciseComment as upsertExerciseCommentRow,
+  upsertDailyCheckin as upsertDailyCheckinRow,
 } from "../storage/eventStore";
 import type { ExternalSessionRecord } from "../storage/db";
-import type { BodyMetric, InjuryLog, SessionNote, ActivitySegment, SetTiming } from "../storage/trackingTypes";
+import type {
+  BodyMetric,
+  InjuryLog,
+  SessionNote,
+  ActivitySegment,
+  SetTiming,
+  ExerciseComment,
+  DailyCheckin,
+} from "../storage/trackingTypes";
 import { foldState } from "../domain/fold";
 import { rollingCyclePos, calendarCyclePos, nextCyclePos } from "../domain/cyclePos";
 import { buildWorkoutPlan, type WorkoutPlan } from "../domain/programEngine";
@@ -107,6 +117,10 @@ export type ProgramStoreState = {
   endActivity(id: string, endedAt: string, durationSec: number): Promise<void>;
   /** 세트 소요시간 기록(UI11) — id(=SetRecord.id) 기준 upsert, fold 입력 밖. */
   recordSetTiming(rec: SetTiming): Promise<void>;
+  /** 운동별 메모 upsert(UI15 item3) — fold 입력 밖, 재fold 불필요. */
+  addExerciseComment(rec: ExerciseComment): Promise<void>;
+  /** 요일별 체크인 upsert(UI15 item4) — date 기준 병합(전달 안 한 필드는 보존), fold 입력 밖. */
+  addDailyCheckin(rec: DailyCheckin): Promise<void>;
 };
 
 /** program 순서상 CyclePos의 선형 인덱스(Stage1-UI9) — target·현재 위치의 전후(뒤로 이동인지
@@ -438,5 +452,13 @@ export const useProgramStore = create<ProgramStoreState>()((set, get) => ({
 
   async recordSetTiming(rec) {
     await upsertSetTimingRow(rec);
+  },
+
+  async addExerciseComment(rec) {
+    await upsertExerciseCommentRow(rec);
+  },
+
+  async addDailyCheckin(rec) {
+    await upsertDailyCheckinRow(rec);
   },
 }));
