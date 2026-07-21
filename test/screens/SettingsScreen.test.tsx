@@ -8,7 +8,9 @@ import { resetDb } from "../helpers/db";
 import { loadSeedProgram, seedOnboarded as seedOnboardedHelper } from "../helpers/seed";
 
 // UI14 item9 — TM 수동 편집 섹션은 ProgramScreen.tsx로 이관(테스트도 함께 이동,
-// test/screens/ProgramScreen.test.tsx 참조). 이 파일은 이제 백업 + 앱 설명 섹션만 검증.
+// test/screens/ProgramScreen.test.tsx 참조).
+// UI14 재검수(컨트롤러) — "앱 설명 · 사용법" 안내 카드는 사용자가 삭제 요청한 항목으로 판명돼
+// SettingsScreen에서 제거됨. 이 파일은 이제 백업 섹션만 검증.
 
 const seed = loadSeedProgram();
 
@@ -41,20 +43,20 @@ afterEach(() => {
   cleanup();
 });
 
-describe("SettingsScreen — 앱 설명 · 사용법", () => {
-  it("앱 설명 · 사용법 섹션이 렌더된다", async () => {
+describe("SettingsScreen", () => {
+  it("앱 설명 · 사용법 안내 카드는 더 이상 렌더되지 않는다(사용자 삭제 요청)", async () => {
     await seedOnboarded();
     render(<SettingsScreen />);
 
-    expect(await screen.findByRole("heading", { name: "앱 설명 · 사용법" })).toBeInTheDocument();
-    expect(screen.getByText(/오프라인 우선 운동 추적기/)).toBeInTheDocument();
+    await screen.findByRole("heading", { name: "백업" });
+    expect(screen.queryByRole("heading", { name: "앱 설명 · 사용법" })).not.toBeInTheDocument();
   });
 
   it("TM 수동 편집 섹션은 더 이상 여기 없음(item9 — 프로그램 탭으로 이관)", async () => {
     await seedOnboarded();
     render(<SettingsScreen />);
 
-    await screen.findByRole("heading", { name: "앱 설명 · 사용법" });
+    await screen.findByRole("heading", { name: "백업" });
     expect(screen.queryByRole("heading", { name: "TM / 1RM 편집" })).not.toBeInTheDocument();
     expect(screen.queryByTestId("tm-input-bench")).not.toBeInTheDocument();
   });

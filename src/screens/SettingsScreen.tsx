@@ -61,31 +61,6 @@ export function SettingsScreen() {
       {error && <div role="alert" className="alert">{error}</div>}
       {status && <div role="status" className="status-banner">{status}</div>}
       <section className="settings-card">
-        <h3>앱 설명 · 사용법</h3>
-        <p>계정·서버 없이 폰에 저장되는 오프라인 우선 운동 추적기. nSuns 5/3/1 프로그램의 오늘 세트를 자동 계산하고, 수행 결과에 따라 다음 무게를 자동으로 제안한다. (Boostcamp 유료 기능 대체용 개인 앱.)</p>
-        <p>
-          <strong>기본 사용법</strong>
-        </p>
-        <ul>
-          <li>1. 온보딩에서 트레이닝 맥스(TM) 8개 입력 → 시작.</li>
-          <li>2. 홈에서 오늘의 운동 확인 → "오늘 운동 시작".</li>
-          <li>3. 각 세트를 완료하면 우측 원을 탭(또는 행 전체 탭) → 골드 체크로 바뀜. 무게·횟수는 ± 버튼으로 조정.</li>
-          <li>4. 전 세트 완료 → "세션 완료" → 다음 훈련일이 자동으로 준비됨.</li>
-        </ul>
-        <p>
-          <strong>자동 증량 · 제안</strong>
-        </p>
-        <p>탑세트(메인 리프트 95%×최대반복)의 반복수에 따라 다음 TM이 자동 조정된다. 판단이 필요한 경우(저조·초과 수행)엔 홈/오늘 화면 상단에 제안 카드가 떠서 동결/증량/디로드를 고르면 된다.</p>
-        <p>
-          <strong>데이터 · 백업</strong>
-        </p>
-        <p>모든 기록은 이 브라우저(폰) 안에만 저장된다. 폰을 바꾸거나 앱을 지우기 전엔 아래 "백업 → 내보내기"로 파일을 저장하고, 새 기기에서 "가져오기"로 복원한다. 가끔 내보내두는 것을 권장.</p>
-        <p>
-          <strong>설치 (홈 화면에 추가)</strong>
-        </p>
-        <p>Android Chrome: 메뉴(⋮) → "홈 화면에 추가". iPhone Safari: 공유 → "홈 화면에 추가". 설치하면 전체화면 + 오프라인 실행된다.</p>
-      </section>
-      <section className="settings-card">
         <h3>백업</h3>
         <button type="button" className="btn btn-primary" onClick={handleExport} disabled={exporting}>
           내보내기
