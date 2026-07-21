@@ -17,6 +17,7 @@ import type {
   ExerciseComment,
   ActivitySegment,
   SetTiming,
+  DailyCheckin,
 } from "./trackingTypes";
 
 export async function appendSet(rec: SetRecord): Promise<void> {
@@ -185,6 +186,20 @@ export async function listExerciseComments(exerciseId?: string): Promise<Exercis
   return sortByAtId(filtered);
 }
 
+/** 운동 코멘트 조회(UI15 item3) — 같은 slotId(요일별 슬롯)의 최신 메모가 있으면 그것을, 없으면
+ *  같은 exerciseId(다른 요일 포함)의 최신 메모로 폴백. 둘 다 없으면 undefined. */
+export async function getExerciseCommentForSlot(
+  exerciseId: string,
+  slotId: string,
+): Promise<ExerciseComment | undefined> {
+  const rows = await db.exerciseComments.toArray();
+  const bySlot = rows.filter((r) => r.exerciseId === exerciseId && r.slotId === slotId);
+  if (bySlot.length > 0) return sortByAtId(bySlot).at(-1);
+  const byExercise = rows.filter((r) => r.exerciseId === exerciseId);
+  if (byExercise.length === 0) return undefined;
+  return sortByAtId(byExercise).at(-1);
+}
+
 /** 활동 구간 시작(UI11) — 새 구간 put. "동시 1개만 진행" 규칙은 여기서 강제하지 않는다(단순 CRUD) —
  * programStore.startActivity가 기존 진행 구간을 먼저 종료시키는 오케스트레이션을 담당. */
 export async function startActivitySegment(rec: ActivitySegment): Promise<void> {
@@ -217,6 +232,29 @@ export async function listSetTimings(sessionId?: string): Promise<SetTiming[]> {
   return [...filtered].sort((a, b) =>
     a.startedAt < b.startedAt ? -1 : a.startedAt > b.startedAt ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
   );
+}
+
+/** 요일별 체크인 upsert(UI15 item4) — date 기준 1건. 같은 날짜에 이미 레코드가 있으면 그 id를
+ *  재사용하고, rec에서 undefined인 필드는 기존 값을 보존한다(한 항목만 탭해도 나머지 필드가
+ *  지워지지 않게 하는 병합 계약 — programStore.addDailyCheckin이 이 계약에 의존). */
+export async function upsertDailyCheckin(rec: DailyCheckin): Promise<void> {
+  const existing = await getDailyCheckin(rec.date);
+  const merged: DailyCheckin = {
+    id: existing?.id ?? rec.id,
+    date: rec.date,
+    condition: rec.condition ?? existing?.condition,
+    sleep: rec.sleep ?? existing?.sleep,
+    lastMeal: rec.lastMeal ?? existing?.lastMeal,
+    at: rec.at,
+    schemaVersion: 1,
+  };
+  await db.dailyCheckins.put(merged);
+}
+
+/** 특정 날짜의 체크인 조회 — 없으면 undefined. */
+export async function getDailyCheckin(date: string): Promise<DailyCheckin | undefined> {
+  const rows = await db.dailyCheckins.toArray();
+  return rows.find((r) => r.date === date);
 }
 
 export async function loadFoldInput(): Promise<FoldInput> {

@@ -18,11 +18,12 @@ describe("buildWorkoutPlan", () => {
   it("② day5 벤치 워밍업 오라클", () => {
     const plan = buildWorkoutPlan(seed, { cycleIndex: 0, week: 0, dayOrdinal: 5 }, tm, {}, DEFAULT_PLATES);
     const benchSlot = plan!.slots.find((s) => s.slotId === "w1d5-bench-t1")!;
+    // UI15 item1 — 3단계로 축소 + 1단계 2세트 반복(88%×1 스텝은 잘려나감).
     expect(benchSlot.warmups).toEqual([
+      { weight: 20, reps: 10, setType: "warmup" },
       { weight: 20, reps: 10, setType: "warmup" },
       { weight: 40, reps: 5, setType: "warmup" },
       { weight: 55, reps: 3, setType: "warmup" },
-      { weight: 70, reps: 1, setType: "warmup" },
     ]);
   });
 
@@ -30,7 +31,9 @@ describe("buildWorkoutPlan", () => {
     const plan = buildWorkoutPlan(seed, { cycleIndex: 0, week: 0, dayOrdinal: 4 }, tm, {}, DEFAULT_PLATES);
     const deadSlot = plan!.slots.find((s) => s.slotId === "w1d4-dead-t1")!;
     expect(deadSlot.sets.map((s) => s.weight)).toEqual([105, 120, 132.5, 125, 120, 112.5, 105, 97.5, 90]);
+    // UI15 item1 — 힌지는 3스텝 그대로였으므로 1단계(60kg)만 2세트 반복.
     expect(deadSlot.warmups).toEqual([
+      { weight: 60, reps: 5, setType: "warmup" },
       { weight: 60, reps: 5, setType: "warmup" },
       { weight: 72.5, reps: 3, setType: "warmup" },
       { weight: 92.5, reps: 1, setType: "warmup" },
@@ -51,8 +54,10 @@ describe("buildWorkoutPlan", () => {
     // UI14 item1 버그 fix — tracked 슬롯도 pctOfTM과 동일하게 실제 참조 무게(40kg) 기준 워밍업을
     // 받는다(이전엔 load.kind !== "pctOfTM"이면 무조건 []을 반환하는 버그가 있었음, 이 assertion이
     // 그 버그를 그대로 인코딩하고 있었음). 40kg 기준 generateWarmup: 빈바 20×10 → 50%(20, 빈바와
-    // 중복이라 dedupe로 제거) → 70%→27.5×3 → 88%→35×1(cap=40-2.5=37.5 이내).
+    // 중복이라 dedupe로 제거) → 70%→27.5×3 → 88%→35×1(cap=40-2.5=37.5 이내), dedupe 후 이미 3스텝이라
+    // UI15 item1 축소는 no-op하고 1단계(20kg)만 2세트 반복.
     expect(slotWithState.warmups).toEqual([
+      { weight: 20, reps: 10, setType: "warmup" },
       { weight: 20, reps: 10, setType: "warmup" },
       { weight: 27.5, reps: 3, setType: "warmup" },
       { weight: 35, reps: 1, setType: "warmup" },
@@ -91,7 +96,9 @@ describe("buildWorkoutPlan", () => {
       { weight: 77.5, reps: 5, setType: "work" },
       { weight: 77.5, reps: 5, setType: "work" },
     ]);
+    // UI15 item1 — 원래 2스텝 그대로였으므로 1단계(60kg)만 2세트 반복.
     expect(preset.warmups).toEqual([
+      { weight: 60, reps: 5, setType: "warmup" },
       { weight: 60, reps: 5, setType: "warmup" },
       { weight: 67.5, reps: 1, setType: "warmup" },
     ]);

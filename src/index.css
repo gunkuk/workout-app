@@ -926,6 +926,89 @@ button {
   margin: 4px 0 0;
 }
 
+/* 운동별 메모(UI15 item3) — 이전 메모 폴백 표시는 회색(is-placeholder), 사용자가 타이핑하면 기본색으로 전환. */
+.exercise-comment-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  width: 100%;
+  margin: 6px 0;
+}
+
+.exercise-comment-input.is-placeholder {
+  color: var(--muted);
+}
+
+/* 요일별 컨디션/수면/직전식사 체크인(UI15 item4) — 1~5 세그먼트 컨트롤 3행. */
+.daily-checkin-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+}
+
+.checkin-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkin-label {
+  color: var(--muted);
+  font-size: 13px;
+  width: 64px;
+  flex-shrink: 0;
+}
+
+.checkin-segment {
+  display: flex;
+  gap: 4px;
+}
+
+.checkin-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+}
+
+.checkin-btn.is-selected {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--bg);
+  font-weight: bold;
+}
+
+/* 성취 알림 토스트(UI15 item2) — PR/TM증량 시 화면 상단 스택. */
+.achievement-toast-stack {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.achievement-toast {
+  background: var(--gold);
+  color: var(--bg);
+  font-weight: bold;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
 .session-activity {
   margin: 4px 0 0;
 }

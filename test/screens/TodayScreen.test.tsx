@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, within, cleanup, act } from "@testing-library/react";
 import { db } from "../../src/storage/db";
-import { appendSet, appendSession } from "../../src/storage/eventStore";
+import { appendSet, appendSession, upsertExerciseComment } from "../../src/storage/eventStore";
 import { useProgramStore } from "../../src/store/programStore";
 import { TodayScreen, sessionIdFor } from "../../src/screens/TodayScreen";
 import { STEP_WEIGHT } from "../../src/screens/today/useTodaySession";
@@ -587,5 +587,138 @@ describe("TodayScreen", () => {
     const segs = await db.activitySegments.toArray();
     expect(segs).toHaveLength(1);
     expect(segs[0]!.kind).toBe("stretch");
+  });
+
+  // UI15 item3 — 운동별 메모: 요일별(slotId) 관리 + 이전 메모 회색 자동표시 + 타이핑 시 검정 전환.
+
+  it("⑳ 다른 요일에 남긴 이전 메모가 회색(is-placeholder)으로 자동 표시됨(exerciseId 폴백)", async () => {
+    await seedOnboarded();
+    // day1(w1d1-bench-t1)이 아니라 다른 슬롯(가상의 과거 요일)에 남긴 벤치 메모 — 같은 slotId
+    // 기록이 없으므로 exerciseId=bench 최신 메모로 폴백해야 한다.
+    await upsertExerciseComment({
+      id: "prev-comment",
+      exerciseId: "bench",
+      slotId: "w1d5-bench-t1",
+      note: "그립 좁게가 잘 맞음",
+      at: at(1, 8),
+      schemaVersion: 1,
+    });
+    await useProgramStore.getState().load();
+    render(<TodayScreen />);
+    await waitForWarmupSettled();
+
+    const input = (await screen.findByTestId("exercise-comment-w1d1-bench-t1")) as HTMLInputElement;
+    await waitFor(() => expect(input.value).toBe("그립 좁게가 잘 맞음"));
+    expect(input.className).toContain("is-placeholder");
+  });
+
+  it("㉑ 메모 타이핑 시 회색→검정 전환 + blur 시 slotId와 함께 upsert", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+    render(<TodayScreen />);
+    await waitForWarmupSettled();
+
+    const input = (await screen.findByTestId("exercise-comment-w1d1-bench-t1")) as HTMLInputElement;
+    expect(input.className).not.toContain("is-placeholder");
+
+    fireEvent.change(input, { target: { value: "오늘은 무겁게 느껴짐" } });
+    expect(input.className).not.toContain("is-placeholder");
+    fireEvent.blur(input);
+
+    await waitFor(async () => {
+      const rows = await db.exerciseComments.toArray();
+      const bench = rows.find((r) => r.exerciseId === "bench" && r.slotId === "w1d1-bench-t1");
+      expect(bench).toBeDefined();
+      expect(bench!.note).toBe("오늘은 무겁게 느껴짐");
+    });
+  });
+
+  // UI15 item4 — 요일별 컨디션/수면/직전식사 체크인: 탭 → 그 항목만 즉시 저장, 나머지 필드 보존.
+
+  it("㉒ 컨디션 3 탭 → dailyCheckins에 오늘 날짜로 저장 + 버튼 선택 표시", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+    render(<TodayScreen />);
+    await waitForWarmupSettled();
+
+    const checkin = screen.getByTestId("daily-checkin");
+    const conditionBtn = within(checkin).getByRole("button", { name: "컨디션 3" });
+    fireEvent.click(conditionBtn);
+
+    expect(conditionBtn.className).toContain("is-selected");
+
+    const today = new Date().toISOString().slice(0, 10);
+    await waitFor(async () => {
+      const rows = await db.dailyCheckins.toArray();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.date).toBe(today);
+      expect(rows[0]!.condition).toBe(3);
+    });
+  });
+
+  it("㉓ 컨디션·수면을 각각 탭 → 두 필드 모두 같은 날짜 레코드 1건에 보존(병합)", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+    render(<TodayScreen />);
+    await waitForWarmupSettled();
+
+    const checkin = screen.getByTestId("daily-checkin");
+    fireEvent.click(within(checkin).getByRole("button", { name: "컨디션 4" }));
+    await waitFor(async () => expect(await db.dailyCheckins.toArray()).toHaveLength(1));
+    fireEvent.click(within(checkin).getByRole("button", { name: "수면 2" }));
+
+    await waitFor(async () => {
+      const rows = await db.dailyCheckins.toArray();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.condition).toBe(4);
+      expect(rows[0]!.sleep).toBe(2);
+    });
+  });
+
+  // UI15 item2 — PR(1RM/볼륨 신기록)·TM 증량 알림 토스트.
+
+  it("㉔ 그 운동의 첫 작업세트 완료 — 이전 기록이 없으므로 1RM·볼륨 신기록 토스트가 뜸", async () => {
+    await seedOnboarded();
+    await useProgramStore.getState().load();
+    const { container } = render(<TodayScreen />);
+    await waitForWarmupSettled();
+
+    // day1 T1(벤치)의 첫 작업세트 — 이 운동은 이전 기록이 전혀 없으므로 반드시 PR.
+    const firstWorkRow = rowsForLabel(container, "T1")[0]!;
+    fireEvent.click(firstWorkRow);
+    await waitFor(() => expect(firstWorkRow.querySelector('[aria-label="완료됨"]')).toBeTruthy());
+
+    await waitFor(() => {
+      expect(screen.getByText(/1RM 신기록/)).toBeTruthy();
+      expect(screen.getByText(/볼륨 신기록/)).toBeTruthy();
+    });
+  });
+
+  it("㉕ topSet 3렙 완료 후 세션완료 → TM 증량(140→145) 시 TM 증량 토스트가 뜸", async () => {
+    await seedOnboarded();
+    await advancePast(3); // day4(데드T1)로 전진 — 테스트⑨와 동일 픽스처
+    await useProgramStore.getState().load();
+    expect(useProgramStore.getState().tm["deadlift"]).toBe(140);
+
+    const { container } = render(<TodayScreen />);
+    await waitForWarmupSettled();
+
+    const topSetRow = rowsForLabel(container, "T1")[2]!;
+    const repsUp = within(topSetRow).getByRole("button", { name: "렙 증가" });
+    fireEvent.click(repsUp);
+    fireEvent.click(repsUp);
+    fireEvent.click(topSetRow);
+    await waitFor(() => expect(topSetRow.querySelector('[aria-label="완료됨"]')).toBeTruthy());
+
+    await completeAllRows(container);
+    const completeBtn = await screen.findByRole("button", { name: "세션 완료" });
+    fireEvent.click(completeBtn);
+
+    await waitFor(() => {
+      expect(useProgramStore.getState().tm["deadlift"]).toBe(145);
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/TM 증량! .*140→145kg/)).toBeTruthy();
+    });
   });
 });

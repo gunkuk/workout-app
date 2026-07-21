@@ -10,9 +10,13 @@ import {
   listSessionNotes,
   upsertExerciseComment,
   listExerciseComments,
+  getExerciseCommentForSlot,
+  upsertDailyCheckin,
+  getDailyCheckin,
 } from "../../src/storage/eventStore";
-import type { BodyMetric, InjuryLog, SessionNote, ExerciseComment } from "../../src/storage/trackingTypes";
+import type { BodyMetric, InjuryLog, SessionNote, ExerciseComment, DailyCheckin } from "../../src/storage/trackingTypes";
 import { resetDb } from "../helpers/db";
+import { db } from "../../src/storage/db";
 
 // UI5 T1 — 추적 엔티티 4종(체성분/부상/세션노트/운동코멘트) storage 레이어 테스트.
 // fold 입력 밖(§설계원칙 동결 유지)이므로 loadFoldInput/fold 관련 검증은 없음 — 순수 CRUD·정렬·병합 계약만.
@@ -31,6 +35,10 @@ function sessionNote(id: string, over: Partial<SessionNote> = {}): SessionNote {
 
 function exerciseComment(id: string, over: Partial<ExerciseComment> = {}): ExerciseComment {
   return { id, exerciseId: "bench", note: "그립 좁게가 잘 맞음", at: "2026-07-10T09:00:00Z", schemaVersion: 1, ...over };
+}
+
+function dailyCheckin(id: string, over: Partial<DailyCheckin> = {}): DailyCheckin {
+  return { id, date: "2026-07-10", at: "2026-07-10T09:00:00Z", schemaVersion: 1, ...over };
 }
 
 beforeEach(async () => {
@@ -161,5 +169,64 @@ describe("tracking — ExerciseComment", () => {
 
     const ids = (await listExerciseComments("bench")).map((c) => c.id);
     expect(ids).toEqual(["early", "late"]);
+  });
+
+  it("⑯ getExerciseCommentForSlot — 같은 slotId의 최신 메모 우선(UI15 item3)", async () => {
+    await upsertExerciseComment(
+      exerciseComment("mon", { exerciseId: "bench", slotId: "w1d1-bench-t1", note: "월요일 메모", at: "2026-07-06T09:00:00Z" }),
+    );
+    await upsertExerciseComment(
+      exerciseComment("wed", { exerciseId: "bench", slotId: "w1d3-bench-t1", note: "수요일 메모", at: "2026-07-08T09:00:00Z" }),
+    );
+
+    const got = await getExerciseCommentForSlot("bench", "w1d1-bench-t1");
+    expect(got?.id).toBe("mon");
+    expect(got?.note).toBe("월요일 메모");
+  });
+
+  it("⑰ getExerciseCommentForSlot — 같은 slotId 메모 없으면 같은 exerciseId(다른 요일) 최신 메모로 폴백", async () => {
+    await upsertExerciseComment(
+      exerciseComment("mon", { exerciseId: "bench", slotId: "w1d1-bench-t1", note: "월요일 메모", at: "2026-07-06T09:00:00Z" }),
+    );
+    await upsertExerciseComment(
+      exerciseComment("wed", { exerciseId: "bench", slotId: "w1d3-bench-t1", note: "수요일 메모", at: "2026-07-08T09:00:00Z" }),
+    );
+
+    // w1d5(금요일) 슬롯엔 기록이 없으므로 exerciseId=bench 최신(수요일) 메모로 폴백.
+    const got = await getExerciseCommentForSlot("bench", "w1d5-bench-t1");
+    expect(got?.id).toBe("wed");
+    expect(got?.note).toBe("수요일 메모");
+  });
+
+  it("⑱ getExerciseCommentForSlot — slotId도 exerciseId도 기록 없으면 undefined", async () => {
+    expect(await getExerciseCommentForSlot("squat", "w1d2-squat-t1")).toBeUndefined();
+  });
+});
+
+describe("tracking — DailyCheckin(UI15 item4)", () => {
+  it("⑲ CRUD — upsertDailyCheckin 후 getDailyCheckin(date)로 조회", async () => {
+    const c = dailyCheckin("c1", { condition: 4 });
+    await upsertDailyCheckin(c);
+    expect(await getDailyCheckin("2026-07-10")).toEqual(c);
+  });
+
+  it("⑳ 존재하지 않는 날짜 조회 → undefined", async () => {
+    await upsertDailyCheckin(dailyCheckin("c1"));
+    expect(await getDailyCheckin("2026-07-11")).toBeUndefined();
+  });
+
+  it("㉑ 같은 날짜에 항목별로 여러 번 upsert — 한 항목만 갱신되고 나머지는 보존(병합 계약)", async () => {
+    await upsertDailyCheckin(dailyCheckin("c1", { condition: 3 }));
+    await upsertDailyCheckin(dailyCheckin("c2", { sleep: 5 }));
+    await upsertDailyCheckin(dailyCheckin("c3", { lastMeal: 2 }));
+
+    const got = await getDailyCheckin("2026-07-10");
+    expect(got?.condition).toBe(3);
+    expect(got?.sleep).toBe(5);
+    expect(got?.lastMeal).toBe(2);
+    // 병합 후에도 같은 날짜는 레코드 1건(id는 최초 것 유지).
+    const all = await db.dailyCheckins.toArray();
+    expect(all).toHaveLength(1);
+    expect(all[0]?.id).toBe("c1");
   });
 });
