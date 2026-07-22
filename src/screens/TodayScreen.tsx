@@ -145,6 +145,27 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
     );
   };
 
+  // 로테이팅 액세서리(UI16) — rotationPool이 선언된 슬롯은 세션마다 사용자가 실제 수행할 운동을
+  // 고를 수 있다(예: 수요일 하체 2번째 슬롯 = 엉덩이/내전근/레그익스텐션/레그컬). 선택은 세션 로컬
+  // (sessionStorage, skip 플래그와 동일 패턴) — 엔진(programEngine)은 이 선택을 모른다(무게/렙 계산은
+  // 슬롯 자체의 defaultLoad/AccessoryState 그대로, exerciseId만 표시·기록용으로 교체).
+  const [rotationChoice, setRotationChoice] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!sessionId || !todayPlan) return;
+    const restored: Record<string, string> = {};
+    for (const slot of todayPlan.slots) {
+      if (!slot.rotationPool) continue;
+      const saved = sessionStorage.getItem(`rotation:${sessionId}:${slot.slotId}`);
+      if (saved && slot.rotationPool.includes(saved)) restored[slot.slotId] = saved;
+    }
+    setRotationChoice(restored);
+  }, [sessionId, todayPlan]);
+  const handleRotationChange = (slotId: string, exerciseId: string) => {
+    if (!sessionId) return;
+    sessionStorage.setItem(`rotation:${sessionId}:${slotId}`, exerciseId);
+    setRotationChoice((p) => ({ ...p, [slotId]: exerciseId }));
+  };
+
   // PR/증량/최대볼륨 알림(UI15 item2) — fold.ts(동결)는 건드리지 않는 순수 UI 파생 판정
   // (domain/prDetection.ts) + TM 증량은 store의 tm 값 변화를 ref로 비교. 워밍업 세트는 판정 제외.
   const [achievements, setAchievements] = useState<Achievement[]>([]);
@@ -317,7 +338,12 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
         </div>
       )}
       {error && <div role="alert" className="alert">{error}</div>}
-      {effectiveSlots.map(({ original, slot, swapped }) => {
+      {effectiveSlots.map(({ original, slot: baseSlot, swapped }) => {
+        // 로테이팅 액세서리(UI16) — 선택된 게 있으면 exerciseId만 교체(무게/렙/AccessoryState는 slotId
+        // 그대로라 baseSlot 계산 그대로 유지). swappedFrom은 기존 통증일 스왑과 동일 필드를 공유.
+        const rotatedTo = rotationChoice[original.slotId];
+        const slot = rotatedTo && rotatedTo !== baseSlot.exerciseId ? { ...baseSlot, exerciseId: rotatedTo } : baseSlot;
+        const rotationSwappedFrom = rotatedTo && rotatedTo !== baseSlot.exerciseId ? baseSlot.exerciseId : undefined;
         const slotDone = slot.sets.filter((_, i) => recorded[setIdFor(sessionId, slot.slotId, "work", i)] !== undefined).length;
         return (
           <section key={original.slotId} className="slot-section">
@@ -343,6 +369,21 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
                   onRestoreOriginal={handleRestoreOriginal}
                 />
               </div>
+              {baseSlot.rotationPool && (
+                <select
+                  aria-label={`${slot.label} 운동 선택`}
+                  data-testid={`rotation-select-${original.slotId}`}
+                  className="rotation-select"
+                  value={slot.exerciseId}
+                  onChange={(e) => handleRotationChange(original.slotId, e.target.value)}
+                >
+                  {baseSlot.rotationPool.map((exId) => (
+                    <option key={exId} value={exId}>
+                      {exerciseInfo(exId)?.name ?? exId}
+                    </option>
+                  ))}
+                </select>
+              )}
               <input
                 type="text"
                 aria-label={`${exerciseInfo(slot.exerciseId)?.name ?? slot.exerciseId} 메모`}
@@ -396,7 +437,9 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
                           index={i + 1}
                           cfg={USER_PLATES}
                           durationSec={setTimings[id]?.durationSec}
-                          onComplete={(w, r) => handleWorkSetComplete(id, slot, s, w, r, swappedSlots[slot.slotId])}
+                          onComplete={(w, r) =>
+                            handleWorkSetComplete(id, slot, s, w, r, swappedSlots[slot.slotId] ?? rotationSwappedFrom)
+                          }
                           onCorrect={(w, r) => handleCorrect(id, w, r)}
                         />
                       );

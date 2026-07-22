@@ -28,14 +28,18 @@ describe("kk-6day 시드 — 로드·검증", () => {
     }
   });
 
-  it("T1 규칙 배치 — pullup만 doubleProgression(예외), 나머지 4개(ohp/squat/tbarRow/bench)는 linearTopSet", () => {
+  it("T1 규칙 배치 — pullup(doubleProgression)·legPress(repLadder)는 예외, 나머지 3개(ohp/tbarRow/bench)는 linearTopSet", () => {
+    // 2026-07-22: 스쿼트→레그프레스 교체(축성부하 제거) — 레그프레스는 머신·TM 개념이 없어 다른
+    // accessory와 동일한 repLadder(tracked) 방식으로 처방한다(programs/kk-6day.json d3-legpress).
     const p = loadKk6day();
     const t1Slots = p.weeks[0]!.days.flatMap((d) => d.slots).filter((s) => s.label === "T1");
     expect(t1Slots).toHaveLength(5);
     const pullup = t1Slots.find((s) => s.exerciseId === "pullup")!;
     expect(pullup.progressionRuleId).toBe("doubleProgression");
-    const linear = t1Slots.filter((s) => s.exerciseId !== "pullup");
-    expect(linear).toHaveLength(4);
+    const legPress = t1Slots.find((s) => s.exerciseId === "legPress")!;
+    expect(legPress.progressionRuleId).toBe("repLadder");
+    const linear = t1Slots.filter((s) => s.exerciseId !== "pullup" && s.exerciseId !== "legPress");
+    expect(linear).toHaveLength(3);
     for (const s of linear) {
       expect(s.progressionRuleId, s.id).toBe("linearTopSet");
       expect(s.sets.filter((x) => x.amrapRole === "topSet"), s.id).toHaveLength(1);

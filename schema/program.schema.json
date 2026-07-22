@@ -163,6 +163,15 @@
           },
           "additionalProperties": false
         },
+        "rotationPool": {
+          "type": "array",
+          "description": "UI16 — 세션마다 사용자가 고를 수 있는 대체 운동 exerciseId 목록. 엔진은 무게/렙 계산에 안 씀.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 2
+        },
         "sets": {
           "type": "array",
           "minItems": 1,

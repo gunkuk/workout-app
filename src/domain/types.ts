@@ -81,6 +81,9 @@ export type SlotSpec = {
   /** tracked 슬롯의 최초 무게 유도(UI13) — AccessoryState가 아직 없을 때만 쓰인다.
    *  `kg` 절대값 또는 `ref` TM × `pct`. 상태가 생기면(첫 세션 기록) 무시된다. */
   defaultLoad?: { ref?: string; pct?: number; kg?: number };
+  /** 이 슬롯에서 세션마다 사용자가 고를 수 있는 대체 운동 목록(UI16, 로테이팅 액세서리).
+   *  엔진(programEngine)은 읽지 않는다(무게/렙 계산 무관) — 화면 레이어가 선택·표시만 담당. */
+  rotationPool?: string[];
   sets: SetSpec[];
 };
 

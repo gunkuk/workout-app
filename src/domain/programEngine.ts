@@ -22,6 +22,8 @@ export type PlannedSlot = {
   sets: PlannedSet[];
   missingTM: boolean;
   needsInit: boolean;
+  /** UI16 — SlotSpec.rotationPool 그대로 통과(엔진은 미사용, 화면 레이어 선택 UI용). */
+  rotationPool?: string[];
 };
 
 /** 오늘의 운동 계획 — 특정 CyclePos의 day 하나 */
@@ -140,7 +142,16 @@ function buildSlot(
 
   const warmups = computeWarmups(slot, sets, missingTM, cfg);
 
-  return { slotId: slot.id, exerciseId: slot.exerciseId, label: slot.label, warmups, sets, missingTM, needsInit };
+  return {
+    slotId: slot.id,
+    exerciseId: slot.exerciseId,
+    label: slot.label,
+    warmups,
+    sets,
+    missingTM,
+    needsInit,
+    rotationPool: slot.rotationPool,
+  };
 }
 
 /** 오늘의 WorkoutPlan 생성 — 해당 CyclePos에 day가 없으면 null (스펙 §2-1) */

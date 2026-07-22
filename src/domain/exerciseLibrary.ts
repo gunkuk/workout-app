@@ -133,6 +133,26 @@ export const EXERCISES: Record<string, ExerciseInfo> = {
     name: "원암 덤벨로우",
     groups: ["back", "biceps"],
   },
+  legPress: {
+    id: "legPress",
+    name: "레그 프레스",
+    groups: ["quads", "glutes"],
+  },
+  adductorMachine: {
+    id: "adductorMachine",
+    name: "내전근 머신",
+    groups: ["quads"],
+  },
+  legExtension: {
+    id: "legExtension",
+    name: "레그 익스텐션",
+    groups: ["quads"],
+  },
+  legCurl: {
+    id: "legCurl",
+    name: "레그 컬",
+    groups: ["hamstrings"],
+  },
 };
 
 /** 운동 정보 조회 */
