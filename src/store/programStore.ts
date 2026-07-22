@@ -37,6 +37,7 @@ import { foldState } from "../domain/fold";
 import { rollingCyclePos, calendarCyclePos, nextCyclePos } from "../domain/cyclePos";
 import { buildWorkoutPlan, type WorkoutPlan } from "../domain/programEngine";
 import { USER_PLATES } from "../lib/plateConfig";
+import { listBundledPrograms } from "../lib/bundledPrograms";
 import { programKey } from "../domain/foldSupport";
 import { sessionIdFor } from "../domain/sessionId";
 import { activeSessions } from "./sessionRevocation";
@@ -199,7 +200,22 @@ export const useProgramStore = create<ProgramStoreState>()((set, get) => ({
       return;
     }
 
-    const activeProgram = input.programs.get(programKey(instanceState.programId, instanceState.programVersion));
+    // UI17 — 내장 프로그램은 매 로드마다 최신 번들 정의로 동기화한다. IndexedDB의 programVersions는
+    // 최초 온보딩/전환 시점의 스냅샷이라, 앱 배포로 kk-6day.json 등을 고쳐도 이미 그 프로그램을 쓰던
+    // 사용자에게는 반영이 안 되는 구조적 문제가 있었다(2026-07-22 사용자 리포트 — 스쿼트→레그프레스
+    // 교체가 반영 안 됨). 사용자가 파일/URL로 직접 가져온 커스텀 프로그램(번들 목록에 없는 id)은
+    // 그대로 스냅샷을 쓴다 — 그건 이 동기화 대상이 아님.
+    const bundledMatch = listBundledPrograms().find(
+      (bp) => bp.id === instanceState.programId && bp.version === instanceState.programVersion,
+    );
+    let activeProgram = input.programs.get(programKey(instanceState.programId, instanceState.programVersion));
+    if (bundledMatch) {
+      const fresh = bundledMatch.load();
+      if (JSON.stringify(fresh) !== JSON.stringify(activeProgram)) {
+        await upsertProgramVersion(fresh);
+      }
+      activeProgram = fresh;
+    }
     if (!activeProgram) {
       set({ ...EMPTY_STATE, instanceState });
       return;
