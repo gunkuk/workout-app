@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import { ProgramLibrary } from "../components/ProgramLibrary";
 import { useProgramStore } from "../store/programStore";
 import { exerciseInfo } from "../domain/exerciseLibrary";
-import { est1RM } from "./home/performance";
-import { nowISO } from "../lib/time";
+import { exportSnapshot, importSnapshot, shareOrDownloadSnapshot, parseSnapshotJSON } from "../lib/backup";
 import type { CyclePos, ProgramDefinition, DaySpec, SlotSpec } from "../domain/types.ts";
 
 /**
@@ -168,7 +167,7 @@ function FastForwardCard() {
         kind: "success",
         text:
           result.revokedReal > 0
-            ? `이동 완료 — 실제 기록이 있던 세션 ${result.revokedReal}개가 취소되었습니다(TM은 유지 — 필요시 설정에서 수동 조정).`
+            ? `이동 완료 — 실제 기록이 있던 세션 ${result.revokedReal}개가 취소되었습니다(TM은 유지 — 필요시 홈 화면에서 수동 조정).`
             : "이동 완료.",
       });
     } catch (e) {
@@ -219,79 +218,77 @@ function FastForwardCard() {
         이 위치로 이동
       </button>
       <p style={{ fontSize: 13, color: "var(--muted)" }}>
-        TM은 자동으로 바뀌지 않습니다 — 실제로 증량했다면 설정 → TM 수동 편집에서 맞춰주세요.
+        TM은 자동으로 바뀌지 않습니다 — 실제로 증량했다면 홈 화면 수행능력 카드의 "TM 수정"에서 맞춰주세요.
       </p>
     </section>
   );
 }
 
 /**
- * TM/1RM 편집(UI14 item9 — SettingsScreen의 "TM 수동 편집"에서 이관, 원래 Stage1-C3 T4).
- * programStore.tm을 그대로 렌더하고, 저장 시 DecisionEvent{kind:"manual"}을 만들어 기존
- * `acceptProposal` mutation을 재사용한다 — 이름은 "제안 수락"이지만 본질은 appendDecision+refresh라
- * 임의의 결정(수동 편집 포함)에 그대로 맞는다. 대칭성(item9 요구)을 위해 각 행에 읽기전용 환산
- * 1RM(est1RM = TM/0.9)도 함께 보여준다 — liftSummary()와 동일한 환산식(home/performance.ts) 재사용.
+ * 백업 내보내기/가져오기(항목3 — SettingsScreen 폐지에 따라 ProgramScreen 맨 하단으로 이관).
+ * 로직(스냅샷 조합, Web Share/다운로드 분기, JSON 파싱)은 전부 src/lib/backup.ts에 그대로 두고,
+ * 이 카드는 배선만 담당한다(원래 SettingsScreen.tsx의 handleExport/handleImportChange 그대로).
  */
-function TmEditCard() {
-  const tm = useProgramStore((s) => s.tm);
-  const acceptProposal = useProgramStore((s) => s.acceptProposal);
-  const [tmEdits, setTmEdits] = useState<Record<string, string>>({});
-  const [tmError, setTmError] = useState<string | null>(null);
+function BackupCard() {
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function handleTmSave(exerciseId: string) {
-    const raw = tmEdits[exerciseId];
-    const value = raw === undefined ? NaN : Number(raw);
-    if (raw === undefined || raw.trim() === "" || !Number.isFinite(value)) {
-      setTmError("올바른 숫자를 입력해주세요.");
-      return;
+  async function handleExport() {
+    setError(null);
+    setStatus(null);
+    setExporting(true);
+    try {
+      const snapshot = await exportSnapshot();
+      await shareOrDownloadSnapshot(snapshot);
+      setStatus("내보내기 완료");
+    } catch {
+      setError("내보내기 실패 — 다시 시도해주세요.");
+    } finally {
+      setExporting(false);
     }
-    setTmError(null);
-    await acceptProposal({
-      id: crypto.randomUUID(),
-      target: { kind: "tm", exerciseId },
-      kind: "manual",
-      value,
-      at: nowISO(),
-      schemaVersion: 1,
-    });
-    setTmEdits((prev) => {
-      const next = { ...prev };
-      delete next[exerciseId];
-      return next;
-    });
   }
 
-  if (Object.keys(tm).length === 0) return null;
+  async function handleImportChange(e: ChangeEvent<HTMLInputElement>) {
+    setError(null);
+    setStatus(null);
+    const file = e.target.files?.[0];
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const data = parseSnapshotJSON(text);
+      await importSnapshot(data);
+      setStatus("가져오기 완료 — 기존 데이터와 병합되었습니다.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "가져오기 실패 — 다시 시도해주세요.");
+    } finally {
+      setImporting(false);
+    }
+  }
 
   return (
     <section className="settings-card">
-      <h3>TM / 1RM 편집</h3>
-      {tmError && (
-        <div role="alert" className="alert">
-          {tmError}
-        </div>
-      )}
-      <ul>
-        {Object.entries(tm).map(([exerciseId, value]) => (
-          <li key={exerciseId}>
-            {exerciseId}: {value}{" "}
-            <span className="form-label" style={{ marginBottom: 0 }}>
-              (환산 1RM ≈{est1RM(value)})
-            </span>
-            <input
-              type="number"
-              data-testid={`tm-input-${exerciseId}`}
-              className="free-input"
-              value={tmEdits[exerciseId] ?? ""}
-              placeholder={String(value)}
-              onChange={(e) => setTmEdits((prev) => ({ ...prev, [exerciseId]: e.target.value }))}
-            />
-            <button type="button" className="btn btn-secondary" onClick={() => handleTmSave(exerciseId)}>
-              저장
-            </button>
-          </li>
-        ))}
-      </ul>
+      <h3>백업</h3>
+      {error && <div role="alert" className="alert">{error}</div>}
+      {status && <div role="status" className="status-banner">{status}</div>}
+      <button type="button" className="btn btn-primary" onClick={handleExport} disabled={exporting}>
+        내보내기
+      </button>
+      <label className="form-label">
+        가져오기
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json"
+          data-testid="import-file-input"
+          onChange={handleImportChange}
+          disabled={importing}
+        />
+      </label>
     </section>
   );
 }
@@ -326,8 +323,8 @@ export function ProgramScreen() {
         </div>
       )}
       {activeProgram && instanceMode === "rolling" && <FastForwardCard />}
-      {activeProgram && <TmEditCard />}
       <ProgramLibrary />
+      <BackupCard />
     </div>
   );
 }

@@ -51,6 +51,7 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
   const addBodyMetric = useProgramStore((s) => s.addBodyMetric);
   const addInjuryMutation = useProgramStore((s) => s.addInjury);
   const resolveInjuryMutation = useProgramStore((s) => s.resolveInjury);
+  const acceptProposal = useProgramStore((s) => s.acceptProposal);
 
   const [cycleCompleted, setCycleCompleted] = useState(0);
   const [foldInput, setFoldInput] = useState<FoldInput | null>(null);
@@ -62,6 +63,12 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
   const [injuryFormOpen, setInjuryFormOpen] = useState(false);
   const [injuryBodyPart, setInjuryBodyPart] = useState("");
   const [injuryNote, setInjuryNote] = useState("");
+
+  // 항목2a — TM/1RM 편집(구 ProgramScreen.TmEditCard, 원래 SettingsScreen Stage1-C3 T4)을
+  // 여기(수행능력 대시보드 맨 밑)로 이관: "수정" 버튼을 눌러야 인라인 편집 폼이 펼쳐진다.
+  const [tmEditOpen, setTmEditOpen] = useState(false);
+  const [tmEdits, setTmEdits] = useState<Record<string, string>>({});
+  const [tmError, setTmError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -139,6 +146,31 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
     if (!window.confirm(`"${inj.bodyPart}" 부상을 해소 처리할까요?`)) return;
     await resolveInjuryMutation(inj.id, nowISO());
     await refreshInjuries();
+  }
+
+  /** TM 수동 편집 저장 — DecisionEvent{kind:"manual"}을 만들어 acceptProposal(=appendDecision+refresh)
+   *  을 재사용한다(원래 ProgramScreen.TmEditCard와 동일 로직, 위치만 이관). */
+  async function handleTmSave(exerciseId: string): Promise<void> {
+    const raw = tmEdits[exerciseId];
+    const value = raw === undefined ? NaN : Number(raw);
+    if (raw === undefined || raw.trim() === "" || !Number.isFinite(value)) {
+      setTmError("올바른 숫자를 입력해주세요.");
+      return;
+    }
+    setTmError(null);
+    await acceptProposal({
+      id: crypto.randomUUID(),
+      target: { kind: "tm", exerciseId },
+      kind: "manual",
+      value,
+      at: nowISO(),
+      schemaVersion: 1,
+    });
+    setTmEdits((prev) => {
+      const next = { ...prev };
+      delete next[exerciseId];
+      return next;
+    });
   }
 
   const weekdays = useMemo(() => trainingWeekdays(activeProgram), [activeProgram]);
@@ -368,7 +400,7 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
             <ul className="lift-summary-list">
               {liftRows.map((row) => (
                 <li key={row.exerciseId} className="lift-summary-row" data-testid={`lift-summary-${row.exerciseId}`}>
-                  {/* UI14 item6 — TM 표시 제거, 환산 1RM만(TM 편집은 프로그램 탭으로 이동, item9). */}
+                  {/* UI14 item6 — TM 표시 제거, 환산 1RM만(TM 편집은 아래 "TM 수정" 버튼, 항목2a). */}
                   <span className="lift-summary-name">{row.name}</span>
                   <span className="lift-summary-est">≈{row.est1RM}</span>
                   {row.measuredE1RM !== undefined && (
@@ -377,6 +409,50 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
                 </li>
               ))}
             </ul>
+          )}
+
+          {/* 항목2a — TM/1RM 편집(구 ProgramScreen.TmEditCard 이관). 기본은 접혀 있고 "TM 수정"으로 연다. */}
+          {Object.keys(tm).length > 0 && (
+            <>
+              <button
+                type="button"
+                className="btn-ghost"
+                data-testid="tm-edit-toggle"
+                onClick={() => setTmEditOpen((v) => !v)}
+              >
+                {tmEditOpen ? "TM 수정 접기" : "TM 수정"}
+              </button>
+              {tmEditOpen && (
+                <div className="form-field">
+                  {tmError && (
+                    <div role="alert" className="alert">
+                      {tmError}
+                    </div>
+                  )}
+                  <ul>
+                    {Object.entries(tm).map(([exerciseId, value]) => (
+                      <li key={exerciseId}>
+                        {exerciseId}: {value}{" "}
+                        <span className="form-label" style={{ marginBottom: 0 }}>
+                          (환산 1RM ≈{est1RM(value)})
+                        </span>
+                        <input
+                          type="number"
+                          data-testid={`tm-input-${exerciseId}`}
+                          className="free-input"
+                          value={tmEdits[exerciseId] ?? ""}
+                          placeholder={String(value)}
+                          onChange={(e) => setTmEdits((prev) => ({ ...prev, [exerciseId]: e.target.value }))}
+                        />
+                        <button type="button" className="btn btn-secondary" onClick={() => handleTmSave(exerciseId)}>
+                          저장
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
