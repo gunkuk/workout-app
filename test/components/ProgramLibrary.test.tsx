@@ -70,17 +70,17 @@ describe("ProgramLibrary", () => {
 
     render(<ProgramLibrary />);
 
-    // "내장 프로그램" 섹션에도 동일한 프로그램명이 나타날 수 있으므로(Task3) 활성 목록(program-library-list)으로 스코핑.
     const libraryList = screen.getByTestId("program-library-list");
     const seedItem = await within(libraryList).findByText((text) => text.includes(seed.name));
     const li = seedItem.closest("li")!;
     expect(li.textContent).toContain("활성");
     expect(li.textContent).toContain(`v${seed.version}`);
+    expect(li.className).toContain("program-item-active");
 
-    const secondItem = within(libraryList).getByText(/두 번째 프로그램/);
+    const secondItem = await within(libraryList).findByText(/두 번째 프로그램/);
     const secondLi = secondItem.closest("li")!;
     expect(secondLi.textContent).not.toContain("활성");
-    expect(screen.getByRole("button", { name: "이 프로그램으로 전환" })).toBeInTheDocument();
+    expect(within(secondLi as HTMLElement).getByRole("button", { name: "이 프로그램으로 전환" })).toBeInTheDocument();
   });
 
   it("② 전환 → 기존 이력(foldState 결과) 불변", async () => {
@@ -92,7 +92,9 @@ describe("ProgramLibrary", () => {
 
     render(<ProgramLibrary />);
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-    fireEvent.click(await screen.findByRole("button", { name: "이 프로그램으로 전환" }));
+    const libraryList = screen.getByTestId("program-library-list");
+    const secondItem = await within(libraryList).findByText(/두 번째 프로그램/);
+    fireEvent.click(within(secondItem.closest("li") as HTMLElement).getByRole("button", { name: "이 프로그램으로 전환" }));
 
     await waitFor(() => {
       expect(useProgramStore.getState().activeProgram?.id).toBe("second-prog");
@@ -166,40 +168,38 @@ describe("ProgramLibrary", () => {
     expect(useProgramStore.getState().instanceState?.mode).toBe("rolling");
   });
 
-  it("⑧ 내장 프로그램 섹션 렌더 + 온보딩 완료 상태(이미 라이브러리에 있음) → '추가됨' 표시", async () => {
-    await seedOnboarded();
-    await useProgramStore.getState().load();
-
-    render(<ProgramLibrary />);
-
-    // "프로그램 라이브러리" 활성 목록에도 같은 이름이 나타나므로 bundled-programs-list로 스코핑.
-    const bundledList = screen.getByTestId("bundled-programs-list");
-    const bundledItem = await within(bundledList).findByText((text) => text.includes(seed.name));
-    const li = bundledItem.closest("li")!;
-    // isAdded 여부는 refresh()의 비동기 listPrograms() 완료 후 반영되므로 waitFor로 대기.
-    await waitFor(() => {
-      expect(li.textContent).toContain("추가됨");
-    });
-  });
-
-  it("⑨ 내장 프로그램 '라이브러리에 추가' 클릭 → listPrograms 증가 + '추가됨'으로 전환", async () => {
+  it("⑧(항목2b) 온보딩 전에도 내장 프로그램이 병합 목록에 항상 나타난다(구분·'추가' 개념 없음)", async () => {
     await useProgramStore.getState().load(); // 온보딩 전(라이브러리 비어있음)
     expect(await listPrograms()).toHaveLength(0);
 
     render(<ProgramLibrary />);
 
-    const bundledList = screen.getByTestId("bundled-programs-list");
-    const bundledItem = await within(bundledList).findByText((text) => text.includes(seed.name));
-    const li = bundledItem.closest("li")!;
-    const addButton = within(li).getByRole("button", { name: "라이브러리에 추가" });
-    fireEvent.click(addButton);
+    const libraryList = screen.getByTestId("program-library-list");
+    // 내장 프로그램 3개(nsuns-5day/kk-4day/kk-6day) 모두 별도 "내장 프로그램" 섹션 없이 여기 나타난다.
+    await within(libraryList).findByText((text) => text.includes(seed.name));
+    expect(screen.queryByText("내장 프로그램")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "라이브러리에 추가" })).not.toBeInTheDocument();
+  });
+
+  it("⑨(항목2b) 아직 import 안 된 내장 프로그램을 전환하면 즉시 import 후 활성화된다", async () => {
+    await useProgramStore.getState().load(); // 온보딩 전(라이브러리 비어있음)
+    expect(await listPrograms()).toHaveLength(0);
+
+    render(<ProgramLibrary />);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    const libraryList = screen.getByTestId("program-library-list");
+    const seedItem = await within(libraryList).findByText((text) => text.includes(seed.name));
+    const li = seedItem.closest("li")!;
+    fireEvent.click(within(li).getByRole("button", { name: "이 프로그램으로 전환" }));
 
     await waitFor(async () => {
       expect(await listPrograms()).toHaveLength(1);
     });
     await waitFor(() => {
-      expect(li.textContent).toContain("추가됨");
+      expect(useProgramStore.getState().activeProgram?.id).toBe(seed.id);
     });
+    confirmSpy.mockRestore();
   });
 
   it("⑥ 활성 프로그램 재전환(같은 프로그램)도 새 InstanceState 생성 — no-op 아님", async () => {

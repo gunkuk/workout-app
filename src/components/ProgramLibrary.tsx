@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useProgramStore } from "../store/programStore";
 import { listPrograms } from "../store/queries";
 import { parseAndValidateProgram, fetchProgramFromUrl } from "../lib/programImport";
@@ -11,6 +11,11 @@ import type { ProgramDefinition, ProgramInstanceState } from "../domain/types.ts
  * 전환 확인은 window.confirm(간단 다이얼로그) — 별도 모달 컴포넌트 없이도 "정말 전환할지"
  * 되묻는 요구(계획 문서)를 충족하는 최소 구현. 같은 프로그램으로 재전환도 새 InstanceState를
  * 만든다(스펙 §2-7) — no-op 처리하지 않는다.
+ *
+ * 항목2b — "프로그램 라이브러리"(사용자가 추가한 것)와 "내장 프로그램"(아직 안 추가한 것)의
+ * 구분을 없앴다(사용자 피드백: "내장프로그램이랑 뭐가 다른 거야? 그냥 자동 내장 시켜"). 내장
+ * 프로그램은 항상 이미 라이브러리에 있는 것처럼 하나의 목록에 함께 보이고, "추가" 개념 자체가
+ * 없다 — 아직 실제로 import되지 않은 내장 항목을 전환하면 handleSwitch가 즉시 import한다.
  */
 export function ProgramLibrary() {
   const activeProgram = useProgramStore((s) => s.activeProgram);
@@ -39,6 +44,16 @@ export function ProgramLibrary() {
   useEffect(() => {
     void refresh();
   }, [activeProgram]);
+
+  // 항목2b — listPrograms()(사용자가 실제로 import한 것)와 내장 카탈로그를 id 기준으로 병합.
+  // 내장 프로그램이 아직 import 안 됐어도 항상 목록에 나타난다(bp.load()로 정의를 가져와 채움).
+  // 이미 라이브러리에 있으면 그 실제 엔트리를 우선한다(버전 등 실제 상태 반영).
+  const displayPrograms = useMemo(() => {
+    const byId = new Map<string, ProgramDefinition>();
+    for (const bp of bundledPrograms) byId.set(bp.id, bp.load());
+    for (const p of programs) byId.set(p.id, p);
+    return [...byId.values()];
+  }, [bundledPrograms, programs]);
 
   async function handleImportResult(text: string) {
     const result = parseAndValidateProgram(text);
@@ -77,25 +92,26 @@ export function ProgramLibrary() {
     }
   }
 
-  async function handleAddBundled(program: ProgramDefinition) {
+  async function handleSwitch(program: ProgramDefinition) {
+    if (!window.confirm(`"${program.name}"(으)로 전환할까요?`)) return;
     setBusy(true);
     try {
-      await importProgram(program);
-      await refresh();
+      // 아직 실제로 import 안 된 내장 프로그램(라이브러리 테이블엔 없음)이면 전환 전에 먼저 import.
+      const alreadyImported = programs.some((p) => p.id === program.id && p.version === program.version);
+      if (!alreadyImported) {
+        await importProgram(program);
+        await refresh();
+      }
+      await switchProgram({
+        programId: program.id,
+        programVersion: program.version,
+        mode: "rolling",
+        anchor: {},
+        schemaVersion: 1,
+      });
     } finally {
       setBusy(false);
     }
-  }
-
-  async function handleSwitch(program: ProgramDefinition) {
-    if (!window.confirm(`"${program.name}"(으)로 전환할까요?`)) return;
-    await switchProgram({
-      programId: program.id,
-      programVersion: program.version,
-      mode: "rolling",
-      anchor: {},
-      schemaVersion: 1,
-    });
   }
 
   async function handleModeApply() {
@@ -140,12 +156,22 @@ export function ProgramLibrary() {
         </div>
       )}
       <ul data-testid="program-library-list">
-        {programs.map((program) => {
+        {displayPrograms.map((program) => {
           const isActive = activeProgram?.id === program.id && activeProgram?.version === program.version;
           return (
-            <li key={program.id}>
-              {program.name} (v{program.version}) {isActive && <strong>활성</strong>}
-              {!isActive && (
+            <li
+              key={program.id}
+              data-testid={`program-item-${program.id}`}
+              className={`program-item${isActive ? " program-item-active" : ""}`}
+            >
+              <span className="program-item-name">
+                {program.name} (v{program.version})
+              </span>
+              {isActive ? (
+                <span className="program-item-badge" data-testid={`program-active-badge-${program.id}`}>
+                  ✓ 활성
+                </span>
+              ) : (
                 <button type="button" className="btn btn-secondary" onClick={() => handleSwitch(program)} disabled={busy}>
                   이 프로그램으로 전환
                 </button>
@@ -154,31 +180,6 @@ export function ProgramLibrary() {
           );
         })}
       </ul>
-      <section>
-        <h3>내장 프로그램</h3>
-        <ul data-testid="bundled-programs-list">
-          {bundledPrograms.map((bp) => {
-            const isAdded = programs.some((p) => p.id === bp.id && p.version === bp.version);
-            return (
-              <li key={bp.id}>
-                {bp.name}
-                {isAdded ? (
-                  <strong>추가됨</strong>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => handleAddBundled(bp.load())}
-                    disabled={busy}
-                  >
-                    라이브러리에 추가
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      </section>
       <div className="form-field">
         <label className="form-label">
           파일에서 가져오기
@@ -207,6 +208,10 @@ export function ProgramLibrary() {
             />
             rolling
           </label>
+          <p className="mode-explain">
+            완료한 세션 기준으로 다음 훈련일이 정해집니다 — 며칠 쉬어도 상관없이 마지막으로 한
+            데서 이어갑니다. 요일 고정 없이 자유롭게 진행하고 싶을 때 씁니다.
+          </p>
           <label>
             <input
               type="radio"
@@ -217,6 +222,10 @@ export function ProgramLibrary() {
             />
             calendar
           </label>
+          <p className="mode-explain">
+            실제 달력 요일에 프로그램을 고정 배치합니다 — 예정된 요일에 안 하면 그날은 그냥
+            넘어갑니다(밀리지 않음). 특정 요일마다 정해진 운동을 하고 싶을 때 씁니다.
+          </p>
           {modeSelection === "calendar" && (
             <label className="form-label">
               시작일

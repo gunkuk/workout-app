@@ -251,9 +251,7 @@ export function TodayScreen({ onSessionComplete }: TodayScreenProps) {
   return (
     <div>
       <AchievementToast items={achievements} onDismiss={dismissAchievement} />
-      {/* 스티키 헤더(스펙 §"오늘 화면"): day명 + (전부 완료 시)골드 "세션 완료" pill, 아니면 muted 진행 카운트.
-          ⚙는 NavShell의 전역 고정 아이콘을 그대로 재사용(문서화: 이 헤더에 별도로 두지 않고, InstallBanner에
-          우측 여백을 확보해 겹침만 해소했다 — index.css .install-banner 참조, "구현자 판단" 조항). */}
+      {/* 스티키 헤더(스펙 §"오늘 화면"): day명 + (전부 완료 시)골드 "세션 완료" pill, 아니면 muted 진행 카운트. */}
       <div className="today-sticky-header">
         <h2 className="day-header">{todayPlan.dayName}</h2>
         {/* UI14 item7 — 우상단 통합 표시(today-span-time)는 진행 카운트/완료 pill과 별개로 항상 그

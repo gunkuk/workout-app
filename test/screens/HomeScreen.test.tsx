@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent, waitFor, cleanup, within } from "@testing-library/react";
 import { db } from "../../src/storage/db";
-import { appendSession, appendSet, appendCorrection } from "../../src/storage/eventStore";
+import { appendSession, appendSet, appendCorrection, loadFoldInput } from "../../src/storage/eventStore";
+import { tmHistory } from "../../src/domain/e1rm";
 import { useProgramStore } from "../../src/store/programStore";
 import { HomeScreen } from "../../src/screens/HomeScreen";
 import { resetDb } from "../helpers/db";
@@ -341,5 +342,64 @@ function thisWeekDateStr(offsetFromMonday: number): string {
     await waitFor(() =>
       expect(screen.getByText(new RegExp(`이번 사이클 1/${totalCycle} 완료`))).toBeInTheDocument(),
     );
+  });
+
+  // 항목2a — TM/1RM 편집을 ProgramScreen.TmEditCard(구 SettingsScreen Stage1-C3 T4)에서 수행능력
+  // 대시보드 맨 밑으로 이관. "TM 수정" 버튼을 눌러야 인라인 폼이 펼쳐진다(기본은 접혀 있음).
+  describe("TM/1RM 편집(항목2a, 구 ProgramScreen.TmEditCard)", () => {
+    it("① 기본은 접혀 있다가 'TM 수정' 클릭 시 펼쳐지고, 저장 → fold 반영 + 읽기전용 환산 1RM 표시", async () => {
+      await onboard();
+      render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+
+      const toggle = await screen.findByTestId("tm-edit-toggle");
+      expect(screen.queryByTestId("tm-input-bench")).not.toBeInTheDocument();
+
+      fireEvent.click(toggle);
+      expect(await screen.findByTestId("tm-input-bench")).toBeInTheDocument();
+      // 대칭성(항목2a) — 편집 가능한 TM 입력 옆에 읽기전용 환산 1RM(est1RM = TM/0.9)도 표시.
+      expect(screen.getByText(/환산 1RM ≈116.7/)).toBeInTheDocument(); // 105 / 0.9 = 116.67 → 116.7
+
+      const input = screen.getByTestId("tm-input-bench");
+      fireEvent.change(input, { target: { value: "110" } });
+      fireEvent.click(within(input.closest("li") as HTMLElement).getByRole("button", { name: "저장" }));
+
+      await waitFor(() => expect(useProgramStore.getState().tm.bench).toBe(110));
+    });
+
+    it("② manual 결정이 이력(tmHistory)에 나타남", async () => {
+      await onboard();
+      render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+
+      fireEvent.click(await screen.findByTestId("tm-edit-toggle"));
+      const input = await screen.findByTestId("tm-input-squat");
+      fireEvent.change(input, { target: { value: "90" } });
+      fireEvent.click(within(input.closest("li") as HTMLElement).getByRole("button", { name: "저장" }));
+
+      await waitFor(() => expect(useProgramStore.getState().tm.squat).toBe(90));
+
+      const foldInput = await loadFoldInput();
+      const manualDecision = foldInput.decisions.find(
+        (d) => d.kind === "manual" && d.target.kind === "tm" && d.target.exerciseId === "squat",
+      );
+      expect(manualDecision).toBeDefined();
+      expect(manualDecision?.value).toBe(90);
+
+      const history = tmHistory(foldInput, "squat");
+      expect(history.at(-1)?.value).toBe(90);
+    });
+
+    it("올바르지 않은 숫자 입력 → role=alert 에러, 결정 미기록", async () => {
+      await onboard();
+      render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+
+      fireEvent.click(await screen.findByTestId("tm-edit-toggle"));
+      const input = await screen.findByTestId("tm-input-ohp");
+      fireEvent.change(input, { target: { value: "abc" } });
+      fireEvent.click(within(input.closest("li") as HTMLElement).getByRole("button", { name: "저장" }));
+
+      expect(await screen.findByRole("alert")).toBeInTheDocument();
+      const foldInput = await loadFoldInput();
+      expect(foldInput.decisions.some((d) => d.kind === "manual")).toBe(false);
+    });
   });
 });

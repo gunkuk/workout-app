@@ -186,7 +186,7 @@ export async function importSnapshot(data: object): Promise<void> {
  * 스냅샷을 파일로 내보내기 — iOS: Web Share API(파일 첨부, navigator.canShare가 지원할 때만) 시도 →
  * 미지원 시 클립보드 텍스트 복사 → 클립보드 API도 없으면(구형 Safari 등) 아래 다운로드 분기로 폴스루.
  * 그 외 플랫폼(또는 위 iOS 분기가 전부 불가한 경우): <a download> blob URL 클릭.
- * 순수 로직만 담당(호출부인 SettingsScreen이 에러 표시를 맡는다) — 실패 시 그대로 throw.
+ * 순수 로직만 담당(호출부인 ProgramScreen이 에러 표시를 맡는다) — 실패 시 그대로 throw.
  */
 export async function shareOrDownloadSnapshot(snapshot: BackupSnapshot): Promise<void> {
   const json = JSON.stringify(snapshot, null, 2);

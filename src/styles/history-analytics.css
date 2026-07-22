@@ -13,3 +13,13 @@
 .ha-empty-cta {
   display: inline-block;
 }
+
+/* 주간 이전/다음 네비게이션 — 예전엔 .set-row-controls(stepper용 2열 28px 그리드)를
+ * 잘못 재사용해서 버튼 텍스트가 잘렸다. 전용 클래스로 분리. */
+.week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
