@@ -345,9 +345,10 @@ function thisWeekDateStr(offsetFromMonday: number): string {
   });
 
   // 항목2a — TM/1RM 편집을 ProgramScreen.TmEditCard(구 SettingsScreen Stage1-C3 T4)에서 수행능력
-  // 대시보드 맨 밑으로 이관. "TM 수정" 버튼을 눌러야 인라인 폼이 펼쳐진다(기본은 접혀 있음).
+  // 대시보드 맨 밑으로 이관. "TM/1RM 수정하기" 버튼을 눌러야 인라인 폼이 펼쳐진다(기본은 접혀 있음).
+  // UI19 항목1 — 버튼을 btn-secondary로 더 눈에 띄게, 라벨을 "TM/1RM 수정하기"로 명확화(testid는 유지).
   describe("TM/1RM 편집(항목2a, 구 ProgramScreen.TmEditCard)", () => {
-    it("① 기본은 접혀 있다가 'TM 수정' 클릭 시 펼쳐지고, 저장 → fold 반영 + 읽기전용 환산 1RM 표시", async () => {
+    it("① 기본은 접혀 있다가 'TM/1RM 수정하기' 클릭 시 펼쳐지고, 저장 → fold 반영 + 읽기전용 환산 1RM 표시", async () => {
       await onboard();
       render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
 
@@ -400,6 +401,234 @@ function thisWeekDateStr(offsetFromMonday: number): string {
       expect(await screen.findByRole("alert")).toBeInTheDocument();
       const foldInput = await loadFoldInput();
       expect(foldInput.decisions.some((d) => d.kind === "manual")).toBe(false);
+    });
+  });
+
+  // UI19 항목1 — "TM 수정" 버튼을 btn-secondary(눈에 띄는 스타일) + "TM/1RM 수정하기" 라벨로.
+  describe("항목1 — TM 수정 버튼 가시성", () => {
+    it("btn-secondary 클래스 + 'TM/1RM 수정하기' 라벨, 펼치면 'TM/1RM 수정 접기'로 바뀐다", async () => {
+      await onboard();
+      render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+
+      const toggle = await screen.findByTestId("tm-edit-toggle");
+      expect(toggle).toHaveClass("btn-secondary");
+      expect(toggle).toHaveTextContent("TM/1RM 수정하기");
+
+      fireEvent.click(toggle);
+      expect(toggle).toHaveTextContent("TM/1RM 수정 접기");
+    });
+  });
+
+  // UI19 항목2 — kk-6day(T1 = pullup/ohp/legPress/tbarRow/bench, TM 없는 종목 pullup/legPress 포함)로
+  // 활성화했을 때 대시보드가 하드코딩 4대 리프트가 아니라 실제 프로그램 T1을 동적으로 보여주는지 검증.
+  describe("항목2 — 프로그램 동적 T1 표시(kk-6day)", () => {
+    async function onboardKk6day(): Promise<{ decisions: DecisionEvent[] }> {
+      const { readFileSync } = await import("node:fs");
+      const kk6 = JSON.parse(readFileSync("programs/kk-6day.json", "utf8")) as typeof seed;
+      // kk-6day의 tbarRow는 tmSeeds(ref: deadlift, pct: 0.65)로 자동 시드되므로 별도 decision 불필요.
+      const kk6Decisions: DecisionEvent[] = (["bench", "ohp", "squat", "deadlift"] as const).map((exerciseId) => ({
+        id: `seed-kk6-${exerciseId}`,
+        target: { kind: "tm", exerciseId },
+        kind: "seed",
+        value: TM[exerciseId],
+        at: at(1),
+        schemaVersion: 1,
+      }));
+      // tbarRow는 kk-6day.json의 tmSeeds(ref: deadlift, pct: 0.65)로 실 서비스에선 자동 시드되지만,
+      // 그건 switchProgram() 경로(applyTmSeeds)에서만 적용된다 — 여기선 seedOnboarded+load()만 쓰므로
+      // 테스트 목적상 명시적으로 같은 값(140*0.65=91)을 시드해 실제 활성화 결과와 동등하게 만든다.
+      kk6Decisions.push({
+        id: "seed-kk6-tbarRow",
+        target: { kind: "tm", exerciseId: "tbarRow" },
+        kind: "seed",
+        value: 91,
+        at: at(1),
+        schemaVersion: 1,
+      });
+      await seedOnboarded(kk6, kk6Decisions, at(1));
+      await useProgramStore.getState().load();
+      await waitFor(() => expect(useProgramStore.getState().status).toBe("ready"));
+      return { decisions: kk6Decisions };
+    }
+
+    it("수행능력 카드에 pullup/ohp/legPress/tbarRow/bench 5종이 모두 나타난다(하드코딩 4종이 아님)", async () => {
+      await onboardKk6day();
+      render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+
+      for (const id of ["pullup", "ohp", "legPress", "tbarRow", "bench"]) {
+        expect(await screen.findByTestId(`lift-summary-${id}`)).toBeInTheDocument();
+      }
+      // squat/deadlift는 kk-6day의 T1이 아니므로 수행능력 카드에 나타나지 않는다.
+      expect(screen.queryByTestId("lift-summary-squat")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("lift-summary-deadlift")).not.toBeInTheDocument();
+    });
+
+    it("TM 없는 종목(pullup/legPress)은 스킵되지 않고 '기록 없음'으로 표시된다", async () => {
+      await onboardKk6day();
+      render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+
+      const pullupRow = await screen.findByTestId("lift-summary-pullup");
+      expect(within(pullupRow).getByText("풀업")).toBeInTheDocument();
+      expect(within(pullupRow).getByText("기록 없음")).toBeInTheDocument();
+
+      const legPressRow = screen.getByTestId("lift-summary-legPress");
+      expect(within(legPressRow).getByText("레그 프레스")).toBeInTheDocument();
+      expect(within(legPressRow).getByText("기록 없음")).toBeInTheDocument();
+    });
+
+    it("TM 없는 종목(pullup)에 실측 기록이 있으면 최고 무게(kg)를 표시한다", async () => {
+      await onboardKk6day();
+      await appendSet({
+        id: "pullup-set-1",
+        sessionId: "pullup-sess-1",
+        exerciseId: "pullup",
+        setType: "work",
+        targetWeight: 20,
+        targetReps: 5,
+        actualWeight: 20,
+        actualReps: 5,
+        completedAt: at(2),
+        schemaVersion: 1,
+      });
+
+      render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+
+      const pullupRow = await screen.findByTestId("lift-summary-pullup");
+      expect(within(pullupRow).getByText("20kg")).toBeInTheDocument();
+    });
+
+    it("TM 있는 종목(ohp/bench/tbarRow)은 환산 1RM(≈)을 표시한다", async () => {
+      await onboardKk6day();
+      render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+
+      const ohpRow = await screen.findByTestId("lift-summary-ohp");
+      expect(within(ohpRow).getByText(/^≈/)).toBeInTheDocument();
+      const tbarRow = screen.getByTestId("lift-summary-tbarRow");
+      expect(within(tbarRow).getByText(/^≈/)).toBeInTheDocument();
+    });
+  });
+
+  // UI19 항목3 — TM 패널 종목 그룹핑(T1 → T2(T1 중복 제외) → 기본 운동(중복 제외) → 전체 보기) + PR 날짜.
+  describe("항목3 — TM 패널 재구성(kk-6day)", () => {
+    async function onboardKk6day(): Promise<void> {
+      const { readFileSync } = await import("node:fs");
+      const kk6 = JSON.parse(readFileSync("programs/kk-6day.json", "utf8")) as typeof seed;
+      const kk6Decisions: DecisionEvent[] = (["bench", "ohp", "squat", "deadlift"] as const).map((exerciseId) => ({
+        id: `seed-kk6-${exerciseId}`,
+        target: { kind: "tm", exerciseId },
+        kind: "seed",
+        value: TM[exerciseId],
+        at: at(1),
+        schemaVersion: 1,
+      }));
+      // tbarRow는 kk-6day.json의 tmSeeds(ref: deadlift, pct: 0.65)로 실 서비스에선 자동 시드되지만,
+      // 그건 switchProgram() 경로(applyTmSeeds)에서만 적용된다 — 여기선 seedOnboarded+load()만 쓰므로
+      // 테스트 목적상 명시적으로 같은 값(140*0.65=91)을 시드해 실제 활성화 결과와 동등하게 만든다.
+      kk6Decisions.push({
+        id: "seed-kk6-tbarRow",
+        target: { kind: "tm", exerciseId: "tbarRow" },
+        kind: "seed",
+        value: 91,
+        at: at(1),
+        schemaVersion: 1,
+      });
+      await seedOnboarded(kk6, kk6Decisions, at(1));
+      await useProgramStore.getState().load();
+      await waitFor(() => expect(useProgramStore.getState().status).toBe("ready"));
+    }
+
+    it("T1 5종 모두 행으로 나타나고, T2 중 bench(T1과 중복)는 T2 그룹에서 빠진다", async () => {
+      await onboardKk6day();
+      render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+
+      fireEvent.click(await screen.findByTestId("tm-edit-toggle"));
+
+      for (const id of ["pullup", "ohp", "legPress", "tbarRow", "bench"]) {
+        expect(await screen.findByTestId(`tm-panel-row-${id}`)).toBeInTheDocument();
+      }
+      // T2 종목은 dumbbellRow/bench/oneArmRow/cgbp인데, bench는 T1에도 있으므로 T2 그룹에서는 1번만
+      // (T1 쪽에 이미 렌더) — 같은 exerciseId로 두 번 나타나면 data-testid 중복이라 테스트가 즉시
+      // 실패한다(getByTestId는 유일 매치를 요구). T2 전용 종목(dumbbellRow 등)은 그대로 나타난다.
+      expect(screen.getAllByTestId("tm-panel-row-bench")).toHaveLength(1);
+      expect(await screen.findByTestId("tm-panel-row-dumbbellRow")).toBeInTheDocument();
+      expect(await screen.findByTestId("tm-panel-row-oneArmRow")).toBeInTheDocument();
+      expect(await screen.findByTestId("tm-panel-row-cgbp")).toBeInTheDocument();
+    });
+
+    it("TM 없는 종목(pullup) 행은 읽기전용(입력/저장 버튼 없음), TM 있는 종목(ohp)은 편집 UI 포함", async () => {
+      await onboardKk6day();
+      render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+
+      fireEvent.click(await screen.findByTestId("tm-edit-toggle"));
+
+      const pullupRow = await screen.findByTestId("tm-panel-row-pullup");
+      expect(within(pullupRow).queryByTestId("tm-input-pullup")).not.toBeInTheDocument();
+      expect(within(pullupRow).queryByRole("button", { name: "저장" })).not.toBeInTheDocument();
+      expect(within(pullupRow).getByText("기록 없음")).toBeInTheDocument();
+
+      const ohpRow = await screen.findByTestId("tm-panel-row-ohp");
+      expect(within(ohpRow).getByTestId("tm-input-ohp")).toBeInTheDocument();
+      expect(within(ohpRow).getByRole("button", { name: "저장" })).toBeInTheDocument();
+    });
+
+    it("최고 무게를 실제로 기록하면 그 날짜가 TM 패널 행에 표시된다(PR 날짜)", async () => {
+      await onboardKk6day();
+      await appendSet({
+        id: "pullup-set-pr",
+        sessionId: "pullup-sess-pr",
+        exerciseId: "pullup",
+        setType: "work",
+        targetWeight: 22,
+        targetReps: 5,
+        actualWeight: 22,
+        actualReps: 5,
+        completedAt: at(2),
+        schemaVersion: 1,
+      });
+
+      render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+      fireEvent.click(await screen.findByTestId("tm-edit-toggle"));
+
+      const pullupRow = await screen.findByTestId("tm-panel-row-pullup");
+      expect(within(pullupRow).getByText(new RegExp(`최고 무게 22kg \\(${at(2).slice(0, 10)}\\)`))).toBeInTheDocument();
+    });
+
+    it("기본 운동 그룹 — T1/T2에 없는 squat/deadlift가 표시된다(kk-6day는 T1/T2에 squat/deadlift 없음)", async () => {
+      await onboardKk6day();
+      render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+
+      fireEvent.click(await screen.findByTestId("tm-edit-toggle"));
+
+      expect(await screen.findByTestId("tm-panel-row-squat")).toBeInTheDocument();
+      expect(await screen.findByTestId("tm-panel-row-deadlift")).toBeInTheDocument();
+    });
+
+    it("'전체 보기' — 기본은 접혀 있고, 클릭하면 T1/T2/기본운동 어디에도 없는 실측 기록 종목(예: machineCurl)이 나타난다", async () => {
+      await onboardKk6day();
+      await appendSet({
+        id: "curl-set-1",
+        sessionId: "curl-sess-1",
+        exerciseId: "machineCurl",
+        setType: "work",
+        targetWeight: 15,
+        targetReps: 10,
+        actualWeight: 15,
+        actualReps: 10,
+        completedAt: at(2),
+        schemaVersion: 1,
+      });
+
+      render(<HomeScreen onStartSession={vi.fn()} onLogFreeWorkout={vi.fn()} />);
+      fireEvent.click(await screen.findByTestId("tm-edit-toggle"));
+
+      expect(screen.queryByTestId("tm-panel-row-machineCurl")).not.toBeInTheDocument();
+
+      const showAllToggle = screen.getByTestId("tm-show-all-toggle");
+      expect(showAllToggle).toHaveTextContent("전체 보기");
+      fireEvent.click(showAllToggle);
+
+      expect(await screen.findByTestId("tm-panel-row-machineCurl")).toBeInTheDocument();
+      expect(showAllToggle).toHaveTextContent("전체 보기 접기");
     });
   });
 });
