@@ -218,7 +218,7 @@ function FastForwardCard() {
         이 위치로 이동
       </button>
       <p style={{ fontSize: 13, color: "var(--muted)" }}>
-        TM은 자동으로 바뀌지 않습니다 — 실제로 증량했다면 홈 화면 수행능력 카드의 "TM 수정"에서 맞춰주세요.
+        TM은 자동으로 바뀌지 않습니다 — 실제로 증량했다면 홈 화면 수행능력 카드의 "TM/1RM 수정하기"에서 맞춰주세요.
       </p>
     </section>
   );

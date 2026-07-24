@@ -5,9 +5,14 @@ import { exerciseInfo } from "../domain/exerciseLibrary";
 import { LineChart } from "../components/LineChart";
 import { nowISO } from "../lib/time";
 import { trainingWeekdays, buildMonthGrid, monthSummary } from "./home/attendance";
-import { combinedT1Performance, est1RM, liftSummary } from "./home/performance";
+import { combinedT1Performance, est1RM, liftSummary, programT1ExerciseIds, programT2ExerciseIds } from "./home/performance";
 import { activeSessions } from "../store/sessionRevocation";
+import { applyCorrections } from "../domain/corrections";
+import { computeExerciseHistory, type ExerciseHistoryEntry } from "../domain/exerciseHistory";
 import type { FoldInput } from "../domain/types.ts";
+
+/** TM 패널 "기본 운동들" 그룹 — T1/T2 어디에도 안 속하면 이 정적 목록에서 채운다(항목3). */
+const BASE_LIFT_IDS = ["squat", "deadlift", "bench", "ohp", "pullup"];
 
 export type HomeScreenProps = {
   onStartSession: () => void;
@@ -69,6 +74,8 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
   const [tmEditOpen, setTmEditOpen] = useState(false);
   const [tmEdits, setTmEdits] = useState<Record<string, string>>({});
   const [tmError, setTmError] = useState<string | null>(null);
+  // 항목3 — TM 패널 "전체 보기"(T1/T2/기본 운동 어디에도 안 속하지만 실측 기록이 있는 종목) 토글.
+  const [showAllExercises, setShowAllExercises] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -182,7 +189,43 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
     [foldInput, weekdays],
   );
   const summary = grid ? monthSummary(grid) : null;
-  const performancePoints = useMemo(() => (foldInput ? combinedT1Performance(foldInput) : []), [foldInput]);
+
+  // UI19 — 하드코딩 T1_LIFTS 제거: 활성 프로그램에서 실제 T1/T2 exerciseId를 동적으로 뽑는다(등장
+  // 순서 dedup). T2는 T1과 겹치는 종목을 뺀 목록(TM 패널 그룹핑에서 중복 표시 방지, 항목3).
+  const t1ExerciseIds = useMemo(() => (activeProgram ? programT1ExerciseIds(activeProgram) : []), [activeProgram]);
+  const t2ExerciseIdsRaw = useMemo(() => (activeProgram ? programT2ExerciseIds(activeProgram) : []), [activeProgram]);
+  const t2ExerciseIds = useMemo(
+    () => t2ExerciseIdsRaw.filter((id) => !t1ExerciseIds.includes(id)),
+    [t2ExerciseIdsRaw, t1ExerciseIds],
+  );
+  const baseLiftIds = useMemo(
+    () => BASE_LIFT_IDS.filter((id) => !t1ExerciseIds.includes(id) && !t2ExerciseIds.includes(id)),
+    [t1ExerciseIds, t2ExerciseIds],
+  );
+  // 항목3 — 실측 기록(SetRecord) 기반 종목별 최고 무게/볼륨 + 최초 달성일 인덱스. TM 개념이 없는
+  // 종목(doubleProgression/repLadder)의 "현재 무게" 표시와, TM 패널의 모든 행 "PR 날짜" 표시에 재사용.
+  const exerciseHistory = useMemo((): Map<string, ExerciseHistoryEntry> => {
+    if (!foldInput) return new Map();
+    const effectiveWorkSets = applyCorrections(foldInput.sets, foldInput.corrections).filter(
+      (s) => s.setType === "work" && !s.revoked,
+    );
+    return computeExerciseHistory(effectiveWorkSets);
+  }, [foldInput]);
+
+  // 항목3 "전체 보기" — 위 세 그룹 어디에도 안 속하지만 실측 기록(exerciseHistory)이 있는 나머지 종목.
+  const shownExerciseIds = useMemo(
+    () => new Set([...t1ExerciseIds, ...t2ExerciseIds, ...baseLiftIds]),
+    [t1ExerciseIds, t2ExerciseIds, baseLiftIds],
+  );
+  const otherExerciseIds = useMemo(
+    () => [...exerciseHistory.keys()].filter((id) => !shownExerciseIds.has(id)),
+    [exerciseHistory, shownExerciseIds],
+  );
+
+  const performancePoints = useMemo(
+    () => (foldInput ? combinedT1Performance(foldInput, t1ExerciseIds) : []),
+    [foldInput, t1ExerciseIds],
+  );
   const activeInjuries = injuries?.filter((i) => !i.resolvedAt) ?? [];
 
   const weightPoints = useMemo(
@@ -197,10 +240,14 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
   const latestWeight = weightPoints.at(-1)?.value;
   const latestBodyFat = bodyFatPoints.at(-1)?.value;
 
-  // UI7 — 수행능력↔프로그램 자동 커플링: TM(store, foldState 결과) → liftSummary가 4대 T1 리프트별
+  // UI7 — 수행능력↔프로그램 자동 커플링: TM(store, foldState 결과) → liftSummary가 T1 리프트별
   // (TM, 환산 1RM, 실측 e1RM)을 묶어 "현재 무게" 리스트에 공급. 증량 그래프(TM합) 카드 동반 스탯은
-  // 같은 환산식(est1RM)을 합계에 재적용.
-  const liftRows = useMemo(() => (foldInput ? liftSummary(foldInput, tm) : []), [foldInput, tm]);
+  // 같은 환산식(est1RM)을 합계에 재적용. UI19 — TM 없는 T1 종목은 liftSummary가 exerciseHistory에서
+  // 유도한 bestWeight로 대체 표시(스킵하지 않음).
+  const liftRows = useMemo(
+    () => (foldInput ? liftSummary(foldInput, tm, t1ExerciseIds, exerciseHistory) : []),
+    [foldInput, tm, t1ExerciseIds, exerciseHistory],
+  );
   const estSum = performancePoints.length > 0 ? est1RM(performancePoints.at(-1)!.value) : undefined;
 
   if (!activeProgram) {
@@ -213,6 +260,47 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
   const totalWeeks = activeProgram.weeks.length;
   const currentWeekNum = (todayPos?.week ?? 0) + 1;
   const percent = totalThisCycle > 0 ? Math.round((cycleCompleted / totalThisCycle) * 100) : 0;
+
+  /** 항목3 — TM 패널 한 행. TM이 있는 종목만 편집 UI(입력+저장)를 붙이고, 없는 종목은 이름+PR 날짜만
+   *  읽기전용 표시(그 종목엔 "TM" 개념 자체가 없으므로 편집을 만들지 않는다). */
+  function renderTmPanelRow(exerciseId: string) {
+    const name = exerciseInfo(exerciseId)?.name ?? exerciseId;
+    const h = exerciseHistory.get(exerciseId);
+    const tmValue = tm[exerciseId];
+    return (
+      <li key={exerciseId} data-testid={`tm-panel-row-${exerciseId}`}>
+        <span className="lift-summary-name">{name}</span>{" "}
+        {h?.bestWeightAt !== undefined ? (
+          <span className="form-label" style={{ marginBottom: 0 }}>
+            최고 무게 {h.bestWeight}kg ({h.bestWeightAt.slice(0, 10)})
+          </span>
+        ) : (
+          <span className="form-label" style={{ marginBottom: 0 }}>
+            기록 없음
+          </span>
+        )}
+        {tmValue !== undefined && (
+          <>
+            {" "}
+            <span className="form-label" style={{ marginBottom: 0 }}>
+              (환산 1RM ≈{est1RM(tmValue)})
+            </span>
+            <input
+              type="number"
+              data-testid={`tm-input-${exerciseId}`}
+              className="free-input"
+              value={tmEdits[exerciseId] ?? ""}
+              placeholder={String(tmValue)}
+              onChange={(e) => setTmEdits((prev) => ({ ...prev, [exerciseId]: e.target.value }))}
+            />
+            <button type="button" className="btn btn-secondary" onClick={() => handleTmSave(exerciseId)}>
+              저장
+            </button>
+          </>
+        )}
+      </li>
+    );
+  }
 
   return (
     <div>
@@ -400,9 +488,17 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
             <ul className="lift-summary-list">
               {liftRows.map((row) => (
                 <li key={row.exerciseId} className="lift-summary-row" data-testid={`lift-summary-${row.exerciseId}`}>
-                  {/* UI14 item6 — TM 표시 제거, 환산 1RM만(TM 편집은 아래 "TM 수정" 버튼, 항목2a). */}
+                  {/* UI14 item6 — TM 표시 제거, 환산 1RM만(TM 편집은 아래 "TM/1RM 수정하기" 버튼, 항목2a).
+                      UI19 — TM 없는 T1 종목(row.tm===undefined)은 est1RM 대신 실측 최고 무게(bestWeight)를
+                      보여준다(스킵하지 않음, 기록 자체가 없으면 이름만). */}
                   <span className="lift-summary-name">{row.name}</span>
-                  <span className="lift-summary-est">≈{row.est1RM}</span>
+                  {row.tm !== undefined ? (
+                    <span className="lift-summary-est">≈{row.est1RM}</span>
+                  ) : row.bestWeight !== undefined ? (
+                    <span className="lift-summary-est">{row.bestWeight}kg</span>
+                  ) : (
+                    <span className="lift-summary-est">기록 없음</span>
+                  )}
                   {row.measuredE1RM !== undefined && (
                     <span className="lift-summary-measured">측정 {row.measuredE1RM}</span>
                   )}
@@ -411,48 +507,53 @@ export function HomeScreen({ onStartSession, onLogFreeWorkout }: HomeScreenProps
             </ul>
           )}
 
-          {/* 항목2a — TM/1RM 편집(구 ProgramScreen.TmEditCard 이관). 기본은 접혀 있고 "TM 수정"으로 연다. */}
-          {Object.keys(tm).length > 0 && (
-            <>
+          {/* 항목2a — TM/1RM 편집(구 ProgramScreen.TmEditCard 이관). 기본은 접혀 있고 버튼으로 연다.
+              UI19 항목1 — 버튼을 눈에 띄는 btn-secondary로, 라벨을 "TM/1RM 수정하기"로 명확화. */}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            data-testid="tm-edit-toggle"
+            onClick={() => setTmEditOpen((v) => !v)}
+          >
+            {tmEditOpen ? "TM/1RM 수정 접기" : "TM/1RM 수정하기"}
+          </button>
+          {tmEditOpen && (
+            <div className="form-field">
+              {tmError && (
+                <div role="alert" className="alert">
+                  {tmError}
+                </div>
+              )}
+              {/* UI19 항목3 — 종목을 T1 → T2(T1과 중복 제외) → 기본 운동(정적 목록, 위와 중복 제외) →
+                  "전체 보기"(그 외 실측 기록 있는 종목, 기본은 접힘) 순서로 그룹핑. */}
+              {t1ExerciseIds.length > 0 && (
+                <>
+                  <p className="form-label">T1</p>
+                  <ul>{t1ExerciseIds.map(renderTmPanelRow)}</ul>
+                </>
+              )}
+              {t2ExerciseIds.length > 0 && (
+                <>
+                  <p className="form-label">T2</p>
+                  <ul>{t2ExerciseIds.map(renderTmPanelRow)}</ul>
+                </>
+              )}
+              {baseLiftIds.length > 0 && (
+                <>
+                  <p className="form-label">기본 운동</p>
+                  <ul>{baseLiftIds.map(renderTmPanelRow)}</ul>
+                </>
+              )}
               <button
                 type="button"
                 className="btn-ghost"
-                data-testid="tm-edit-toggle"
-                onClick={() => setTmEditOpen((v) => !v)}
+                data-testid="tm-show-all-toggle"
+                onClick={() => setShowAllExercises((v) => !v)}
               >
-                {tmEditOpen ? "TM 수정 접기" : "TM 수정"}
+                {showAllExercises ? "전체 보기 접기" : "전체 보기"}
               </button>
-              {tmEditOpen && (
-                <div className="form-field">
-                  {tmError && (
-                    <div role="alert" className="alert">
-                      {tmError}
-                    </div>
-                  )}
-                  <ul>
-                    {Object.entries(tm).map(([exerciseId, value]) => (
-                      <li key={exerciseId}>
-                        {exerciseId}: {value}{" "}
-                        <span className="form-label" style={{ marginBottom: 0 }}>
-                          (환산 1RM ≈{est1RM(value)})
-                        </span>
-                        <input
-                          type="number"
-                          data-testid={`tm-input-${exerciseId}`}
-                          className="free-input"
-                          value={tmEdits[exerciseId] ?? ""}
-                          placeholder={String(value)}
-                          onChange={(e) => setTmEdits((prev) => ({ ...prev, [exerciseId]: e.target.value }))}
-                        />
-                        <button type="button" className="btn btn-secondary" onClick={() => handleTmSave(exerciseId)}>
-                          저장
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </>
+              {showAllExercises && <ul>{otherExerciseIds.map(renderTmPanelRow)}</ul>}
+            </div>
           )}
         </div>
       </div>
